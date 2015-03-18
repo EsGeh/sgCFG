@@ -4,9 +4,9 @@
 module Grammar.Internals where
 
 import Types
+import GrammarFormat
 import Prelude hiding (unlines)
-import qualified Data.List as List
-unlines = List.intercalate "\n"
+import Utils (unlines)
 
 data Grammar = Grammar { fromGrammar :: [Production] }
 	deriving (Show)
@@ -57,17 +57,23 @@ instance ToText Grammar where
 
 instance ToTextAs GrammarFormat Var where
 	toTextAs format x =
+		applySymbolFormat (grammarFormat_var format) $ var_name x
+		{-
 		case format of
 			Default -> var_name x
 			BNF -> "<" ++ var_name x ++ ">"
 			BNFE -> var_name x
+		-}
 
 instance ToTextAs GrammarFormat Terminal where
 	toTextAs format x =
+		applySymbolFormat (grammarFormat_terminal format) $ terminal_name x
+	{-
 		case format of
 			Default -> "\"" ++ terminal_name x ++ "\""
 			BNF -> terminal_name x
 			BNFE -> "\"" ++ terminal_name x ++ "\""
+	-}
 
 instance ToTextAs GrammarFormat Symbol where
 	toTextAs format =
@@ -83,11 +89,13 @@ instance ToTextAs GrammarFormat Production where
 		, unwords $ map (toTextAs format) $ production_right p
 		]
 		where
-			prodSign =
+			prodSign = head $ grammarFormat_arrow format
+				{-
 				case format of
 					Default -> "->"
 					BNF -> "::="
 					BNFE -> "::="
+				-}
 
 instance ToTextAs GrammarFormat Grammar where
 	toTextAs format g =
@@ -95,7 +103,9 @@ instance ToTextAs GrammarFormat Grammar where
 		map (toTextAs format) $
 		fromGrammar g
 
+{-
 data GrammarFormat
 	= Default
 	| BNF
 	| BNFE
+-}

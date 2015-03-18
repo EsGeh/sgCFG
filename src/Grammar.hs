@@ -4,18 +4,17 @@ module Grammar(
 	Production(), production_left, production_right,
 	Symbol,
 	Terminal(..), Var(..),
-	GrammarFormat(..)
+	GrammarFormat(..),
+	grammarFromTokens,
+	grammarFromStr,
 ) where
 
-import Types
-import qualified Parse.DefaultSyntax as DefaultSyntax
-import qualified Parse.BNF as BNF
-import qualified Parse.BNFE as BNFE
 import Grammar.Internals
---import Parse
-import Parse.ParseToken
-import Parse.AST
-import Parse.ParseAST
+import Types
+import GrammarFormat
+import GroupedGrammar
+import Parse.ParseFormatFromGrammarFormat (parseFormatFromGrammarFormat)
+import Utils (mapLeft)
 
 import Text.Parsec hiding (many, (<|>))
 import Control.Monad
@@ -23,33 +22,22 @@ import Control.Applicative
 
 
 instance FromTextAs GrammarFormat Grammar where
-	fromTextAs format str =
-		mapLeft show $ grammarFromStr syntaxDescr str
-		where
-			syntaxDescr =
-				case format of
-					Default -> DefaultSyntax.syntaxDescr
-					BNF -> BNF.bnf
-					BNFE -> BNFE.bnfe
+	fromTextAs grammarFormat str =
+		let parseFormat = parseFormatFromGrammarFormat grammarFormat
+		in
+			mapLeft show $ grammarFromStr parseFormat str
 
+grammarFromStr descr =
+	liftM grammarFromGroupedGrammar . groupedGrammarFromStr descr
 
-grammarFromStr descr = liftM grammarFromAST . astFromStr descr
+grammarFromTokens =
+	liftM grammarFromGroupedGrammar . groupedGrammarFromTokens
 
-astFromStr descr =
-	astFromTok
-	<=<
-	tokensFromStr descr
-
-astFromTok = parse parseAST ""
-
-grammarFromAST ast =
+grammarFromGroupedGrammar ast =
 	Grammar $
-	map (uncurry Production) $
 	concat $
-	map allRules $
-	fromAST ast
-	where
-		allRules :: (Var, [[Symbol]]) -> [(Var, [Symbol])]
-		allRules x = (,) <$> [fst x] <*> snd x
+	map productionsFromGroupedProd $
+	fromGroupedGrammar ast
 
-tokensFromStr descr = parse (parseTokens descr) ""
+productionsFromGroupedProd :: GroupedProduction -> [Production]
+productionsFromGroupedProd x = Production <$> [groupedProd_left x] <*> groupedProd_right x
