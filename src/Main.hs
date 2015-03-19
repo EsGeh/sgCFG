@@ -2,6 +2,7 @@ module Main where
 
 import Parse.Token
 import Grammar
+import GroupedGrammar
 import Types
 import ConfigFromArgs
 import Parse.ParseFormatFromGrammarFormat (parseFormatFromGrammarFormat)
@@ -10,39 +11,42 @@ import System.Environment (getArgs)
 import Control.Monad
 import Data.List
 
+progName = "sgCFG"
+
+
+failOrVal :: Monad m => String -> Either String a -> m a
+failOrVal msg x =
+	case x of
+		Left err -> fail $ msg ++ err
+		Right val -> return val
 
 main = do
 	mConfig <- liftM configFromArgs getArgs
 	config <- case mConfig of
 		Nothing -> fail "error parsing arguments"
 		Just config -> return config
-	putStrLn $ show config
 	str <- getContents
-	let errOrGrammar =
-		fromTextAs (cfg_inputFormat config) str
-		:: Either String Grammar
-	case errOrGrammar of
-		Left err ->
-			do
-				putStrLn $ "error parsing grammar:"
-				putStrLn $ err
-				case tokenStream config str of
-					Left _ -> return ()
-					Right stream -> do
-						putStrLn $ "tokenStream: "
-						putStrLn $ tokStreamToText stream
-		Right g -> do
-			putStrLn $ toTextAs (cfg_outputFormat config) g
-			{-
-			case tokenStream config str of
-				Left _ -> return ()
-				Right stream -> do
-					putStrLn $ "tokenStream: "
-					putStrLn $ tokStreamToText stream
-			--putStrLn $ "successfully parsed grammar!"
-			-}
+	let
+		inFormat = fst $ cfg_inputFormat config
+		inParseFormat = parseFormatFromGrammarFormat inFormat
+		errOrTokens = tokensFromStr inParseFormat str
+		errOrGrammar = grammarFromTokens =<< errOrTokens
+		errOrGroupedGrammar = groupedGrammarFromTokens =<< errOrTokens
+	let
+		outputCommands = cfg_output config
+		outputAction cmd =
+			case cmd of
+				OutputHelp -> putStrLn $ usageString progName
+				OutputTokenStream ->
+					putStrLn . tokStreamToText =<< failOrVal "error parsing token stream" errOrTokens
+				OutputOptions ->
+					putStrLn . show $ config
+				OutputGrammar (format,_) ->
+					putStrLn . toTextAs format =<< failOrVal "error parsing grammar" errOrGrammar
+				OutputGroupedGrammar (format, _) ->
+					putStrLn . toTextAs format =<< failOrVal "error parsing grammar" errOrGroupedGrammar
+	sequence $ map outputAction outputCommands
 	where
-		tokenStream config str = tokensFromStr (parseFormatFromGrammarFormat $ cfg_inputFormat config) str
 
 tokStreamToText s =
 	intercalate " " $

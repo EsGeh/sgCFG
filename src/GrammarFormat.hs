@@ -17,7 +17,8 @@ data GrammarFormat
 		--grammarFormat_comment :: [(String, String)]
 	}
 	deriving (Show)
-gFormatMapToProdSign f x = x{ grammarFormat_arrow = f (grammarFormat_arrow x) }
+gFormatMapToOr f x = x{ grammarFormat_or = f (grammarFormat_or x) }
+gFormatMapToArrow f x = x{ grammarFormat_arrow = f (grammarFormat_arrow x) }
 gFormatMapToLineComment f x = x{ grammarFormat_lineComment = f (grammarFormat_lineComment x) }
 
 data SurroundBy

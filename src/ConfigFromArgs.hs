@@ -2,6 +2,7 @@ module ConfigFromArgs where
 
 import Grammar
 import GrammarFormat
+import Utils (mapFst, mapSnd)
 
 import qualified System.Console.GetOpt as Opt
 import Control.Monad
@@ -9,95 +10,153 @@ import Text.Read
 
 import Control.Applicative
 
-data Config
-	= Config {
-		cfg_inputFormat :: GrammarFormat,
-		cfg_outputFormat :: GrammarFormat
-	}
-	deriving (Show)
-cfgMapToInputFormat f cfg = cfg{ cfg_inputFormat = f (cfg_inputFormat cfg) }
-cfgMapToOutputFormat f cfg = cfg{ cfg_outputFormat = f (cfg_outputFormat cfg) }
-
-data PartialCfg
-	= PartialCfg {
-		cfgPartial_inputFormat :: Maybe DefaultFormat,
-		cfgPartial_outputFormat :: Maybe DefaultFormat,
-		cfgPartial_inProdSign :: [String],
-		cfgPartial_outProdSign :: [String],
-		cfgPartial_inLineComment :: [String]
-	}
-	deriving (Show)
-partialCfgMapToInProdSign f cfg = cfg{ cfgPartial_inProdSign = f (cfgPartial_inProdSign cfg) }
-partialCfgMapToOutProdSign f cfg = cfg{ cfgPartial_outProdSign = f (cfgPartial_outProdSign cfg) }
-partialCfgMapToInLineComment f cfg = cfg{ cfgPartial_inLineComment = f (cfgPartial_inLineComment cfg) }
-emptyOptions = PartialCfg Nothing Nothing [] [] []
-
-configFromPartialCfg :: PartialCfg -> Maybe Config
-configFromPartialCfg cfg =
-	liftM (writeOutProdSign $ cfgPartial_outProdSign cfg) $
-	liftM (writeInProdSign $ cfgPartial_inProdSign cfg) $
-	liftM (writeInLineComment $ cfgPartial_inLineComment cfg) $
-	Config
-		<$> (liftM defaultFormat $ cfgPartial_inputFormat cfg)
-		<*> (liftM defaultFormat $ cfgPartial_outputFormat cfg)
-	where
-		writeOutProdSign l cfg =
-			mapIfSet l (cfgMapToOutputFormat $ gFormatMapToProdSign $ const l) cfg
-		writeInProdSign l cfg = 
-			mapIfSet l (cfgMapToInputFormat $ gFormatMapToProdSign $ const l) cfg
-		writeInLineComment l cfg =
-			mapIfSet l (cfgMapToInputFormat $ gFormatMapToLineComment $ const l) cfg
-		mapIfSet list f cfg =
-			case list of
-				[] -> cfg
-				_ -> f cfg
-
-configFromArgs :: [String] -> Maybe Config
-configFromArgs =
-	configFromPartialCfg <=< argsToPartialCfg
-
-argsToPartialCfg :: [String] -> Maybe PartialCfg
-argsToPartialCfg args =
+configFromArgs args =
 	case Opt.getOpt Opt.RequireOrder optDescrList args of
 		(options, nonOptions, []) ->
 			let
 				f = foldl (\f g -> f >=> g) return options -- :: [PartialCfg -> Maybe PartialCfg] -> PartialCfg -> Maybe PartialCfg
 			in
-				f $ emptyOptions
+				f $ defConfig
 		(_,_, errMessages) -> Nothing --errMessages
- 
-optDescrList :: [Opt.OptDescr (PartialCfg -> Maybe PartialCfg)]
+
+usageString progName =
+	unwords $
+	[ Opt.usageInfo header optDescrList
+	, unlines $
+	  [ "where"
+	  , "FORMAT: one of default, bnf, bnfe"
+	  , "CHANGE_FORMAT: <param>=<str>"
+	  , "  param can be one of: or, arrow, lineComment"
+	  ]
+	]
+	where
+		header =
+			unlines $
+			[ concat [ "usage: ", progName , " OPTIONS" ]
+			, "OPTIONS:"
+			]
+
+data Config
+	= Config {
+		cfg_inputFormat :: (GrammarFormat, [FormatParam]),
+		cfg_output :: [OutputSpec]
+		--cfg_outputFormat :: GrammarFormat
+	}
+	deriving (Show)
+cfgMapToInputFormat f cfg = cfg{ cfg_inputFormat = f (cfg_inputFormat cfg) }
+cfgMapToOutput f cfg = cfg{ cfg_output = f (cfg_output cfg) }
+defConfig =
+	Config {
+		cfg_inputFormat = (defaultFormat Default, []),
+		cfg_output = []
+	}
+
+data OutputSpec
+	= OutputHelp
+	| OutputTokenStream
+	| OutputOptions
+	| OutputGrammar (GrammarFormat, [FormatParam])
+	| OutputGroupedGrammar (GrammarFormat, [FormatParam])
+	deriving (Show)
+
+data FormatParam
+	= Or
+	| Arrow
+	| LineComment
+	deriving (Eq, Show)
+
+formatParamFromStr str =
+	case str of
+		"or" -> return Or
+		"arrow" -> return Arrow
+		"lineComment" -> return LineComment
+		_ -> Nothing
+
+applyFormatChange param str (format, overwrittenParams) =
+	case param of
+		Or ->
+			changeF gFormatMapToOr
+		Arrow ->
+			changeF gFormatMapToArrow 
+		LineComment ->
+			changeF gFormatMapToLineComment
+	where
+		changeF f =
+			case param `elem` overwrittenParams of
+				False -> (f (const [str]) format, param:overwrittenParams)
+				True -> (f (str:) format, overwrittenParams)
+
+optDescrList :: [Opt.OptDescr (Config -> Maybe Config)]
 optDescrList =
-	[ Opt.Option [] ["input-format"] (Opt.ReqArg inputF "FORMAT") "one of default, bnf, bnfe"
-	, Opt.Option [] ["output-format"] (Opt.ReqArg outputF "FORMAT") "one of default, bnf, bnfe"
-	, Opt.Option [] ["in-prod-sign"] (Opt.ReqArg inProdSign "") "prod-sign"
-	, Opt.Option [] ["out-prod-sign"] (Opt.ReqArg outProdSign "") "prod-sign"
-	, Opt.Option [] ["in-line-comment"] (Opt.ReqArg inLineComment "") "symbol to start one line comment"
+	[ Opt.Option ['h'] ["help"] (Opt.NoArg (\cfg -> return $ cfgMapToOutput (OutputHelp:) cfg)) "print help"
+	, Opt.Option ['i'] ["input-format", "if"] (Opt.ReqArg inputF "FORMAT") "input format (append \"--change-input-format\" to modify)"
+	, Opt.Option [] ["change-input-format", "cif"] (Opt.ReqArg changeInputFormat "CHANGE_FORMAT") "change input format"
+	, Opt.Option [] ["output-options"]
+		(Opt.NoArg $ return . cfgMapToOutput (OutputOptions:))
+		"output options"
+	, Opt.Option ['t'] ["output-tokens"]
+		(Opt.NoArg outputTokens)
+		"output the input stream as stream of tokens"
+	, Opt.Option ['o'] ["output"]
+		(Opt.ReqArg outputF "FORMAT")
+		"input format (append \"--change-output-format\" to modify)"
+	, Opt.Option ['g'] ["output-grouped"]
+		(Opt.ReqArg outputGrouped "FORMAT")
+		"input format (append \"--change-output-format\" to modify)"
+	, Opt.Option [] ["change-output-format", "cof"] (Opt.ReqArg changeOutputFormat "CHANGE_FORMAT") "change output format"
 	]
 
-inProdSign :: String -> PartialCfg -> Maybe PartialCfg
-inProdSign arg cfg =
-	return $ (partialCfgMapToInProdSign $ (arg:)) cfg
-
-outProdSign :: String -> PartialCfg -> Maybe PartialCfg
-outProdSign arg cfg =
-	return $ (partialCfgMapToOutProdSign $ (arg:)) cfg
-
-inLineComment :: String -> PartialCfg -> Maybe PartialCfg
-inLineComment arg cfg =
-	return $ (partialCfgMapToInLineComment $ (arg:)) cfg
-
-inputF :: String -> PartialCfg -> Maybe PartialCfg
+inputF :: String -> Config -> Maybe Config
 inputF arg cfg =
 	do
-		format <- parseFormat arg
-		return $ cfg{ cfgPartial_inputFormat = Just format }
+		format <- liftM defaultFormat (parseFormat arg)
+		return $ cfg{ cfg_inputFormat = (format, []) }
 
-outputF :: String -> PartialCfg -> Maybe PartialCfg
+outputTokens :: Config -> Maybe Config
+outputTokens cfg =
+	return $ cfgMapToOutput ((OutputTokenStream):) cfg
+
+outputF :: String -> Config -> Maybe Config
 outputF arg cfg =
 	do
-		format <- parseFormat arg
-		return $ cfg{ cfgPartial_outputFormat = Just format }
+		format <- liftM defaultFormat (parseFormat arg)
+		return $ cfgMapToOutput ((OutputGrammar (format,[])):) cfg
+		--return $ cfg{ cfg_inputFormat = format }
+
+outputGrouped :: String -> Config -> Maybe Config
+outputGrouped arg cfg =
+	do
+		format <- liftM defaultFormat (parseFormat arg)
+		return $ cfgMapToOutput ((OutputGroupedGrammar (format, [])):) cfg
+		--return $ cfg{ cfg_inputFormat = format }
+
+changeInputFormat :: String -> Config -> Maybe Config
+changeInputFormat arg cfg =
+	case mapSnd (drop 1) $ span (/='=') arg of
+		(keyStr, val) -> do
+			key <- formatParamFromStr keyStr
+			return $ cfgMapToInputFormat (applyFormatChange key val) cfg
+		--_ -> Nothing
+
+changeOutputFormat :: String -> Config -> Maybe Config
+changeOutputFormat arg cfg =
+	case mapSnd (drop 1) $ span (/='=') arg of
+		(keyStr, val) -> do
+			key <- formatParamFromStr keyStr
+			let outSpecs = cfg_output cfg
+			newSpecs <- changeF key val outSpecs
+			return $ cfg{ cfg_output = newSpecs }
+			where
+				changeF :: FormatParam -> String -> [OutputSpec] -> Maybe [OutputSpec]
+				changeF key val outputCommands =
+					case outputCommands of
+						(spec:rest) -> 
+							case spec of
+								OutputGrammar format -> 
+									return $ (OutputGrammar (applyFormatChange key val format): rest)
+								OutputGroupedGrammar format -> 
+									return $ (OutputGroupedGrammar (applyFormatChange key val format): rest)
+						_ -> Nothing
 
 parseFormat str =
 	case str of
@@ -105,3 +164,8 @@ parseFormat str =
 		"bnf" -> return $ BNF
 		"bnfe" -> return $ BNFE
 		_ -> Nothing
+
+mapIfSet list f cfg =
+	case list of
+		[] -> cfg
+		_ -> f cfg

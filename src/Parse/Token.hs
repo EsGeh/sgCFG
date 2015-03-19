@@ -5,8 +5,10 @@ module Parse.Token(
 
 import Parse.Token.Internals
 import Parse.Token.Parse
+import Utils (mapLeft)
 
 import qualified Text.Parsec as P
 
 
-tokensFromStr descr = P.parse (parseTokens descr) ""
+tokensFromStr descr =
+	mapLeft show . P.parse (parseTokens descr) ""

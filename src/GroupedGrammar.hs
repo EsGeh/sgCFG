@@ -21,7 +21,8 @@ groupedGrammarFromStr descr =
 	<=<
 	tokensFromStr descr
 
-groupedGrammarFromTokens = P.parse parseGroupedGrammar ""
+groupedGrammarFromTokens =
+	mapLeft show . P.parse parseGroupedGrammar ""
 
 
 instance FromTextAs GrammarFormat GroupedGrammar where

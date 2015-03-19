@@ -5,6 +5,9 @@ import qualified Data.List as List
 
 unlines = List.intercalate "\n"
 
+mapFst f (a, b) = (f a, b)
+mapSnd f (a, b) = (a, f b)
+
 isLeft (Right _) = False
 isLeft (Left _) = True
 
