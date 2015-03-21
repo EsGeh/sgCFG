@@ -1,7 +1,12 @@
-module ConfigFromArgs where
+module ConfigFromArgs(
+	module ConfigFromArgs,
+	module Config.Types
+) where
 
+import Config.Types
 import Grammar
 import GrammarFormat
+import Types
 import Utils (mapFst, mapSnd)
 
 import qualified System.Console.GetOpt as Opt
@@ -36,42 +41,145 @@ usageString progName =
 			, "OPTIONS:"
 			]
 
-data Config
-	= Config {
-		cfg_inputFormat :: (GrammarFormat, [FormatParam]),
-		cfg_output :: [OutputSpec]
-		--cfg_outputFormat :: GrammarFormat
-	}
-	deriving (Show)
-cfgMapToInputFormat f cfg = cfg{ cfg_inputFormat = f (cfg_inputFormat cfg) }
-cfgMapToOutput f cfg = cfg{ cfg_output = f (cfg_output cfg) }
-defConfig =
-	Config {
-		cfg_inputFormat = (defaultFormat Default, []),
-		cfg_output = []
-	}
+optDescrList :: [Opt.OptDescr (Config -> Maybe Config)]
+optDescrList =
+	[ Opt.Option ['h'] ["help"] (Opt.NoArg (\cfg -> return $ cfgMapToOutput (OutputHelp:) cfg)) "print help"
+	, Opt.Option ['i'] ["input-format", "if"] (Opt.ReqArg inputF "FORMAT") "input format (append \"--change-input-format\" to modify)"
+	, Opt.Option [] ["change-input-format", "cif"] (Opt.ReqArg changeInputFormat "CHANGE_FORMAT") "change input format"
+	, Opt.Option [] ["output-options"]
+		(Opt.NoArg $ return . cfgMapToOutput (OutputOptions:))
+		"output options"
+	, Opt.Option [] ["output-tokens"]
+		(Opt.NoArg outputTokens)
+		"output the input stream as stream of tokens"
+	, Opt.Option ['o'] ["output"]
+		(Opt.ReqArg outputF "FORMAT")
+		"input format (append \"--change-output-format\" to modify)"
+	, Opt.Option ['g'] ["output-grouped"]
+		(Opt.ReqArg outputGrouped "FORMAT")
+		"input format (append \"--change-output-format\" to modify)"
+	, Opt.Option [] ["change-output-format", "cof"] (Opt.ReqArg changeOutputFormat "CHANGE_FORMAT") "change output format"
+	, Opt.Option ['t'] ["transformation"] (Opt.ReqArg transformation "GRAMMAR_TRANSFORMATION") "apply a transformation on grammar"
+	]
 
-data OutputSpec
-	= OutputHelp
-	| OutputTokenStream
-	| OutputOptions
-	| OutputGrammar (GrammarFormat, [FormatParam])
-	| OutputGroupedGrammar (GrammarFormat, [FormatParam])
-	deriving (Show)
+inputF :: String -> Config -> Maybe Config
+inputF arg cfg =
+	do
+		format <- liftM defaultFormat (either (const Nothing) Just $ fromPretty arg)
+		return $ cfg{ cfg_inputFormat = FormatState format [] }
 
-data FormatParam
-	= Or
-	| Arrow
-	| LineComment
-	deriving (Eq, Show)
+outputTokens :: Config -> Maybe Config
+outputTokens cfg =
+	return $ cfgMapToOutput ((OutputTokenStream):) cfg
 
-formatParamFromStr str =
-	case str of
-		"or" -> return Or
-		"arrow" -> return Arrow
-		"lineComment" -> return LineComment
-		_ -> Nothing
+outputF :: String -> Config -> Maybe Config
+outputF arg cfg =
+	do
+		format <- either (const Nothing) Just $ fromPretty arg
+		return $
+			cfgMapToOutput ((OutputGrammar $ defOutputGrammarInfo format):) cfg
+		--return $ cfgMapToOutput ((OutputGrammar (format,[])):) cfg
+		--return $ cfg{ cfg_inputFormat = format }
 
+outputGrouped :: String -> Config -> Maybe Config
+outputGrouped arg cfg =
+	do
+		format <- either (const Nothing) Just $ fromPretty arg
+		return $
+			cfgMapToOutput ((OutputGroupedGrammar $ defOutputGrammarInfo format):) cfg
+		--return $ cfgMapToOutput ((OutputGroupedGrammar (format, [])):) cfg
+		--return $ cfg{ cfg_inputFormat = format }
+
+changeInputFormat :: String -> Config -> Maybe Config
+changeInputFormat arg cfg = do
+	(key, val) <- either (const Nothing) Just $ parseKeyValue arg
+	return $ cfgMapToInputFormat (applyFormatChange key val) cfg
+
+parseKeyValue str =
+	case mapSnd (drop 1) $ span (/='=') str of
+		(keyStr, val) -> do
+			key <- fromPretty keyStr
+			return $ (key, val)
+
+transformation arg cfg =
+	do
+		cfgMapToOutputM (changeF arg) cfg
+	where
+			changeF :: String -> [OutputSpec] -> Maybe [OutputSpec]
+			changeF str outputCommands =
+				flip mapToHeadMaybe outputCommands $ \spec ->
+					case spec of
+						OutputGroupedGrammar info -> 
+							return . OutputGroupedGrammar
+							=<<
+							outputGrammarInfo_mapToTransformationsM (changeTransformations str) info
+							where
+								changeTransformations str list = do
+									transformation <- either (const Nothing) Just $ fromPretty str
+									return $ (transformation:list)
+						_ -> Nothing
+
+changeOutputFormat :: String -> Config -> Maybe Config
+changeOutputFormat arg cfg =
+	do 
+		(key, val) <- either (const Nothing) Just $ parseKeyValue arg
+		cfgMapToOutputM (changeF key val) cfg
+		where
+			changeF :: FormatParam -> String -> [OutputSpec] -> Maybe [OutputSpec]
+			changeF key val outputCommands =
+				flip mapToHeadMaybe outputCommands $ \spec ->
+					case spec of
+						OutputGrammar info  -> 
+							return $ (
+								(OutputGrammar $ outputGrammarInfo_mapToFormat (applyFormatChange key val) info)
+							)
+						OutputGroupedGrammar info -> 
+							return $ (
+								(OutputGroupedGrammar $ outputGrammarInfo_mapToFormat (applyFormatChange key val) info)
+							)
+						_ -> Nothing
+			{-
+			changeF :: FormatParam -> String -> [OutputSpec] -> Maybe [OutputSpec]
+			changeF key val outputCommands =
+				case outputCommands of
+					(spec:rest) -> 
+						case spec of
+							OutputGrammar info  -> 
+								return $ (
+									(OutputGrammar $ outputGrammarInfo_mapToFormat (applyFormatChange key val) info)
+									:
+									rest
+								)
+							OutputGroupedGrammar info -> 
+								return $ (
+									(OutputGroupedGrammar $ outputGrammarInfo_mapToFormat (applyFormatChange key val) info)
+									:
+									rest
+								)
+								--return $ ((OutputGroupedGrammar $ (formatState_mapToFormat $ applyFormatChange key val) info): rest)
+								--return $ (OutputGroupedGrammar (applyFormatChange key val format): rest)
+					_ -> Nothing
+			-}
+
+applyFormatChange :: FormatParam -> String -> FormatState -> FormatState
+applyFormatChange param str outputInfo =
+	let 
+	in
+		case param of
+			Or ->
+				changeF gFormatMapToOr
+			Arrow ->
+				changeF gFormatMapToArrow 
+			LineComment ->
+				changeF gFormatMapToLineComment
+		where
+			changeF f =
+				case param `elem` overwrittenParams of
+					False -> FormatState (f (const [str]) format) (param:overwrittenParams)
+					True -> FormatState (f (str:) format) overwrittenParams
+			format = formatState_format outputInfo
+			overwrittenParams = formatState_paramsChanged outputInfo
+{-
 applyFormatChange param str (format, overwrittenParams) =
 	case param of
 		Or ->
@@ -85,87 +193,4 @@ applyFormatChange param str (format, overwrittenParams) =
 			case param `elem` overwrittenParams of
 				False -> (f (const [str]) format, param:overwrittenParams)
 				True -> (f (str:) format, overwrittenParams)
-
-optDescrList :: [Opt.OptDescr (Config -> Maybe Config)]
-optDescrList =
-	[ Opt.Option ['h'] ["help"] (Opt.NoArg (\cfg -> return $ cfgMapToOutput (OutputHelp:) cfg)) "print help"
-	, Opt.Option ['i'] ["input-format", "if"] (Opt.ReqArg inputF "FORMAT") "input format (append \"--change-input-format\" to modify)"
-	, Opt.Option [] ["change-input-format", "cif"] (Opt.ReqArg changeInputFormat "CHANGE_FORMAT") "change input format"
-	, Opt.Option [] ["output-options"]
-		(Opt.NoArg $ return . cfgMapToOutput (OutputOptions:))
-		"output options"
-	, Opt.Option ['t'] ["output-tokens"]
-		(Opt.NoArg outputTokens)
-		"output the input stream as stream of tokens"
-	, Opt.Option ['o'] ["output"]
-		(Opt.ReqArg outputF "FORMAT")
-		"input format (append \"--change-output-format\" to modify)"
-	, Opt.Option ['g'] ["output-grouped"]
-		(Opt.ReqArg outputGrouped "FORMAT")
-		"input format (append \"--change-output-format\" to modify)"
-	, Opt.Option [] ["change-output-format", "cof"] (Opt.ReqArg changeOutputFormat "CHANGE_FORMAT") "change output format"
-	]
-
-inputF :: String -> Config -> Maybe Config
-inputF arg cfg =
-	do
-		format <- liftM defaultFormat (parseFormat arg)
-		return $ cfg{ cfg_inputFormat = (format, []) }
-
-outputTokens :: Config -> Maybe Config
-outputTokens cfg =
-	return $ cfgMapToOutput ((OutputTokenStream):) cfg
-
-outputF :: String -> Config -> Maybe Config
-outputF arg cfg =
-	do
-		format <- liftM defaultFormat (parseFormat arg)
-		return $ cfgMapToOutput ((OutputGrammar (format,[])):) cfg
-		--return $ cfg{ cfg_inputFormat = format }
-
-outputGrouped :: String -> Config -> Maybe Config
-outputGrouped arg cfg =
-	do
-		format <- liftM defaultFormat (parseFormat arg)
-		return $ cfgMapToOutput ((OutputGroupedGrammar (format, [])):) cfg
-		--return $ cfg{ cfg_inputFormat = format }
-
-changeInputFormat :: String -> Config -> Maybe Config
-changeInputFormat arg cfg =
-	case mapSnd (drop 1) $ span (/='=') arg of
-		(keyStr, val) -> do
-			key <- formatParamFromStr keyStr
-			return $ cfgMapToInputFormat (applyFormatChange key val) cfg
-		--_ -> Nothing
-
-changeOutputFormat :: String -> Config -> Maybe Config
-changeOutputFormat arg cfg =
-	case mapSnd (drop 1) $ span (/='=') arg of
-		(keyStr, val) -> do
-			key <- formatParamFromStr keyStr
-			let outSpecs = cfg_output cfg
-			newSpecs <- changeF key val outSpecs
-			return $ cfg{ cfg_output = newSpecs }
-			where
-				changeF :: FormatParam -> String -> [OutputSpec] -> Maybe [OutputSpec]
-				changeF key val outputCommands =
-					case outputCommands of
-						(spec:rest) -> 
-							case spec of
-								OutputGrammar format -> 
-									return $ (OutputGrammar (applyFormatChange key val format): rest)
-								OutputGroupedGrammar format -> 
-									return $ (OutputGroupedGrammar (applyFormatChange key val format): rest)
-						_ -> Nothing
-
-parseFormat str =
-	case str of
-		"default"-> return $ Default
-		"bnf" -> return $ BNF
-		"bnfe" -> return $ BNFE
-		_ -> Nothing
-
-mapIfSet list f cfg =
-	case list of
-		[] -> cfg
-		_ -> f cfg
+-}

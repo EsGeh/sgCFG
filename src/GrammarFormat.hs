@@ -5,10 +5,7 @@ data GrammarFormat
 	= GrammarFormat {
 		grammarFormat_var :: Maybe SurroundBy,
 		grammarFormat_terminal :: Maybe SurroundBy,
-		{-
-		grammarFormat_symbol ::
-			Parsec String () () -> (Either String String),
-		-}
+		grammarFormat_taggedSymbol :: AnnotationFormat,
 		grammarFormat_or :: [String],
 		grammarFormat_arrow :: [String],
 		grammarFormat_whitespaces :: [String],
@@ -20,6 +17,14 @@ data GrammarFormat
 gFormatMapToOr f x = x{ grammarFormat_or = f (grammarFormat_or x) }
 gFormatMapToArrow f x = x{ grammarFormat_arrow = f (grammarFormat_arrow x) }
 gFormatMapToLineComment f x = x{ grammarFormat_lineComment = f (grammarFormat_lineComment x) }
+
+data AnnotationFormat
+	= AnnotationFormat {
+		annotationFormat_prepend :: Bool,
+		annotationFormat_intersectBy :: String,
+		annotationFormat_surroundBy :: SurroundBy
+	}
+	deriving (Show)
 
 data SurroundBy
 	= SurroundBy {
@@ -56,6 +61,13 @@ def =
 	GrammarFormat {
 		grammarFormat_var = Nothing,
 		grammarFormat_terminal = Just $ SurroundBy ("\"","\""),
+		grammarFormat_taggedSymbol =
+			AnnotationFormat {
+				annotationFormat_prepend = False,
+				annotationFormat_intersectBy = "",
+				annotationFormat_surroundBy =
+					SurroundBy ("(",")")
+			},
 		grammarFormat_or = ["\n|", "|\n", "|"],
 		grammarFormat_arrow = ["->"],
 		grammarFormat_whitespaces = [" "],

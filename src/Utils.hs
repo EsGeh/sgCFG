@@ -17,6 +17,8 @@ mapLeft f (Right x) = Right x
 mapRight f (Left x) = Left x
 mapRight f (Right x) = Right (f x)
 
+uncurry3 f (a,b,c) = f a b c
+
 concLefts ::
 	forall a b .
 	[Either a b] -> [Either [a] b]

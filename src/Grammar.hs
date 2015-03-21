@@ -1,4 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Grammar(
 	Grammar(), fromGrammar,
 	Production(), production_left, production_right,
@@ -10,6 +12,7 @@ module Grammar(
 ) where
 
 import Grammar.Internals
+import GrammarTypes
 import Types
 import GrammarFormat
 import GroupedGrammar
@@ -37,7 +40,7 @@ grammarFromGroupedGrammar ast =
 	Grammar $
 	concat $
 	map productionsFromGroupedProd $
-	fromGroupedGrammar ast
+	fromGrammar ast
 
 productionsFromGroupedProd :: GroupedProduction -> [Production]
 productionsFromGroupedProd x = Production <$> [groupedProd_left x] <*> groupedProd_right x

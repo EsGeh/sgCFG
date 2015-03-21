@@ -2,8 +2,8 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module GroupedGrammar.Parse where
 
-import Grammar.Internals hiding (unlines)
-import GroupedGrammar.Internals hiding (unlines)
+import GrammarTypes
+import GroupedGrammar.Internals
 import Parse.Token
 import Types
 
@@ -14,7 +14,7 @@ import Data.List
 
 
 parseGroupedGrammar =
-	liftM GroupedGrammar $
+	liftM Grammar $
 	many $
 	do
 		(VarToken varInfo) <- specificToken VarTokenType

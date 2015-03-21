@@ -1,9 +1,14 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 module GroupedGrammar.Internals where
 
-
+import GrammarTypes
 import Types
-import Grammar.Internals
 import GrammarFormat
 import Utils (unlines)
 
@@ -11,40 +16,41 @@ import Prelude hiding(unlines)
 import Data.List hiding (unlines)
 import qualified Data.List as List
 import Control.Applicative
+import Control.Monad.Identity
+import Data.Traversable
+import Data.Functor
+import qualified Data.Foldable as Fold
 
 
-data GroupedGrammar =
-	GroupedGrammar {
-		fromGroupedGrammar :: [GroupedProduction]
-	}
-	deriving (Show)
+type GroupedGrammar = GrammarGen GroupedProduction
+type GroupedProduction = GroupedProductionGen Var Symbol
 
-data GroupedProduction
+data GroupedProductionGen left symbol
 	= GroupedProduction {
-		groupedProd_left :: Var,
-		groupedProd_right :: [[Symbol]]
+		groupedProd_left :: left,
+		groupedProd_right :: [[symbol]]
 	}
-	deriving (Show)
+	deriving (Eq, Ord, Show, Functor, Fold.Foldable, Traversable)
+groupedProdMapToLeftM f p = do
+	new <- f (groupedProd_left p)
+	return $ p{ groupedProd_left = new }
+groupedProdMapToRightM f p = do
+	new <- f (groupedProd_right p)
+	return $ p{ groupedProd_right = new }
+groupedProdMapToLeft f = runIdentity . groupedProdMapToLeftM (return . f)
+groupedProdMapToRight f = runIdentity . groupedProdMapToRightM (return . f)
 
-instance ToText GroupedGrammar where
-	toText groupedGrammar =
-		unlines $
-		map (uncurry showEntry . (\x -> (groupedProd_left x, groupedProd_right x))) $ fromGroupedGrammar groupedGrammar
-		where
-			showEntry var rightRuleSides =
-				concat $
-				[ pretty var
-				, " -> "
-				, intercalate " | " $ map (unwords . map pretty) rightRuleSides
-				]
-
-instance ToTextAs GrammarFormat GroupedGrammar where
+instance
+	(ToTextAs GrammarFormat left, ToTextAs GrammarFormat symbol) =>
+		ToTextAs GrammarFormat (GrammarGen (GroupedProductionGen left symbol)) where
 	toTextAs format groupedGrammar =
 		unlines $
 		map (toTextAs format) $
-		fromGroupedGrammar groupedGrammar
+		fromGrammar groupedGrammar
 
-instance ToTextAs GrammarFormat GroupedProduction where
+instance
+	(ToTextAs GrammarFormat left, ToTextAs GrammarFormat symbol) =>
+	ToTextAs GrammarFormat (GroupedProductionGen left symbol) where
 	toTextAs format p =
 		concat $
 		[ toTextAs format $ groupedProd_left p
@@ -58,3 +64,17 @@ instance ToTextAs GrammarFormat GroupedProduction where
 				intercalate (head $ grammarFormat_or format) $
 				map (unwords . map (toTextAs format)) $
 				x
+
+{-
+instance ToText GroupedGrammar where
+	toText groupedGrammar =
+		unlines $
+		map (uncurry showEntry . (\x -> (groupedProd_left x, groupedProd_right x))) $ fromGroupedGrammar groupedGrammar
+		where
+			showEntry var rightRuleSides =
+				concat $
+				[ pretty var
+				, " -> "
+				, intercalate " | " $ map (unwords . map pretty) rightRuleSides
+				]
+-}

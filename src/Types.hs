@@ -1,4 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Types where
 
 
@@ -19,4 +21,10 @@ class ToTextAs cfg a where
 class FromTextAs cfg a where
 	fromTextAs :: cfg -> String -> Either ParseError a
 
+class FromPretty a where
+	fromPretty :: String -> Either ParseError a
+
 type ParseError = String
+
+instance ToText String where
+	toText = id

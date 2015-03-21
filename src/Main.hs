@@ -27,7 +27,7 @@ main = do
 		Just config -> return config
 	str <- getContents
 	let
-		inFormat = fst $ cfg_inputFormat config
+		inFormat = formatState_format $ cfg_inputFormat config
 		inParseFormat = parseFormatFromGrammarFormat inFormat
 		errOrTokens = tokensFromStr inParseFormat str
 		errOrGrammar = grammarFromTokens =<< errOrTokens
@@ -41,12 +41,27 @@ main = do
 					putStrLn . tokStreamToText =<< failOrVal "error parsing token stream" errOrTokens
 				OutputOptions ->
 					putStrLn . show $ config
-				OutputGrammar (format,_) ->
-					putStrLn . toTextAs format =<< failOrVal "error parsing grammar" errOrGrammar
-				OutputGroupedGrammar (format, _) ->
-					putStrLn . toTextAs format =<< failOrVal "error parsing grammar" errOrGroupedGrammar
+				OutputGrammar info ->
+					let format = formatState_format $ outputGrammar_format info
+					in
+						putStrLn . toTextAs format =<< failOrVal "error parsing grammar" errOrGrammar
+				OutputGroupedGrammar info ->
+					let format = formatState_format $ outputGrammar_format info
+					in
+						putStrLn . toTextAs format
+						=<<
+						return . maybe (error "could not apply transformations") id . applyTransformations (outputGrammar_transformations info)
+						=<<
+						failOrVal "error parsing grammar" errOrGroupedGrammar
 	sequence $ map outputAction outputCommands
+
+applyTransformations :: [Transformation] -> GroupedGrammar -> Maybe GroupedGrammar
+applyTransformations t = foldl (>=>) return $ map toFunc t
 	where
+		toFunc t =
+			case t of
+				SubGrammar var ->
+					groupedGrammarSub [var] <=< return . graphFromGroupedGrammar
 
 tokStreamToText s =
 	intercalate " " $
