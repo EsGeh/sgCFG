@@ -21,7 +21,7 @@ parseGroupedGrammar =
 		specificToken ArrowTokenType
 		prod <- parseRightProdSide 
 		return $
-			GroupedProduction (Var $ fromToken varInfo) prod
+			Production (Var $ fromToken varInfo) prod
 
 parseRightProdSide ::
 	forall m u .

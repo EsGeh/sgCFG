@@ -1,6 +1,12 @@
 module GrammarFormat where
 
 
+{-
+data GrammarOutputFormat
+	= GrammarOutputAsTree
+	| GrammarOutputFormat GrammarFormat
+-}
+
 data GrammarFormat
 	= GrammarFormat {
 		grammarFormat_var :: Maybe SurroundBy,
@@ -48,8 +54,10 @@ bnf =
 	def{
 		grammarFormat_var = Just $ SurroundBy ("<",">"),
 		grammarFormat_terminal = Nothing,
-		grammarFormat_arrow = ["::="]
+		grammarFormat_arrow = ["::=\n  ", "::="]
+		--grammarFormat_arrow = ["::="]
 	}
+
 bnfe =
 	def{
 		grammarFormat_var = Nothing,
@@ -68,8 +76,10 @@ def =
 				annotationFormat_surroundBy =
 					SurroundBy ("(",")")
 			},
-		grammarFormat_or = ["\n|", "|\n", "|"],
-		grammarFormat_arrow = ["->"],
+		grammarFormat_or = ["\n  |", "\n|", "|\n", "|"],
+		--grammarFormat_or = ["\n|", "|\n", "|"],
+		grammarFormat_arrow = ["->\n  ", "->"],
+		--grammarFormat_arrow = ["->"],
 		grammarFormat_whitespaces = [" "],
 		grammarFormat_prodSep = ["\n"],
 		grammarFormat_lineComment = ["#"]

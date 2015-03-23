@@ -6,6 +6,7 @@ import Parse.Format
 import Text.Parsec as P hiding(many, (<|>))
 import Control.Monad
 import Control.Applicative
+import Data.List
 
 parseFormatFromGrammarFormat grammarFormat =
 	ParseFormat {
@@ -13,9 +14,11 @@ parseFormatFromGrammarFormat grammarFormat =
 			symbol grammarFormat,
 		parseFormat_or =
 			map (P.try . P.string) $
+			orderByPrefix $
 			grammarFormat_or grammarFormat,
 		parseFormat_prodSign =
 			map (P.try . P.string) $
+			orderByPrefix $
 			grammarFormat_arrow grammarFormat,
 		parseFormat_whitespaces =
 			map (P.try . P.string) (grammarFormat_whitespaces grammarFormat)
@@ -25,6 +28,31 @@ parseFormatFromGrammarFormat grammarFormat =
 		parseFormat_prodSep = map (P.try . P.string) $ grammarFormat_prodSep grammarFormat
 	}
 
+orderByPrefix strings = sortBy cmp strings
+	where
+		cmp [] [] = EQ
+		cmp [] (y:ys) = GT
+		cmp (x:xs) [] = LT
+		cmp (x:xs) (y:ys) =
+			case compare x y of
+				EQ -> cmp xs ys
+				other -> other
+
+{-
+orderByPrefix =
+	sortBy $ \a b ->
+		if commonPrefix a b == a
+			then GT
+			else
+				if commonPrefix a b == b
+					then LT
+					else GT
+-}
+
+commonPrefix a b =
+	case (a,b) of
+		(x:xs, y:ys) | x == y -> x:(commonPrefix xs ys)
+		_ -> ""
 
 parseLineComment f =
 	(choice $ map (P.try . P.string) $ grammarFormat_lineComment f)

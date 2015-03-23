@@ -46,22 +46,27 @@ main = do
 					in
 						putStrLn . toTextAs format =<< failOrVal "error parsing grammar" errOrGrammar
 				OutputGroupedGrammar info ->
-					let format = formatState_format $ outputGrammar_format info
+					let
+						format = formatState_format $ outputGrammar_format info
+						asTree = outputGrammar_asTree info
 					in
-						putStrLn . toTextAs format
+						(
+							putStrLn .
+							if not asTree
+								then toTextAs format
+								else toTextAs format
+								-- TODO:
+								--else toTextAsTree
+						)
 						=<<
-						return . maybe (error "could not apply transformations") id . applyTransformations (outputGrammar_transformations info)
+						return . maybe (error "could not apply transformations") id . applyTransformations (outputGrammar_transformations info) . toTaggedGrammar
 						=<<
 						failOrVal "error parsing grammar" errOrGroupedGrammar
 	sequence $ map outputAction outputCommands
 
-applyTransformations :: [Transformation] -> GroupedGrammar -> Maybe GroupedGrammar
-applyTransformations t = foldl (>=>) return $ map toFunc t
-	where
-		toFunc t =
-			case t of
-				SubGrammar var ->
-					groupedGrammarSub [var] <=< return . graphFromGroupedGrammar
+applyTransformations :: [Transformation] -> GroupedGrammarTagged -> Maybe GroupedGrammarTagged
+applyTransformations t =
+	(foldl (>=>) return $ map applyTransformation t)
 
 tokStreamToText s =
 	intercalate " " $

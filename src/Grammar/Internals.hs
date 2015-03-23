@@ -18,12 +18,15 @@ data Grammar =
 -}
 
 type Grammar = GrammarGen Production
+type Production = ProductionGen Var [Symbol]
 
+{-
 data Production = Production {
-	production_left :: Var,
-	production_right :: [Symbol]
+	prod_left :: Var,
+	prod_right :: [Symbol]
 }
 	deriving (Eq, Ord, Show)
+-}
 
 ---------------------------------------------------
 -- instances
@@ -32,12 +35,12 @@ data Production = Production {
 instance Pretty Production where
 	pretty p =
 		(concat $
-			[ pretty $ production_left p
+			[ pretty $ prod_left p
 			, " -> "
 			]
 		)
 		++
-		(unwords $ map pretty $ production_right p)
+		(unwords $ map pretty $ prod_right p)
 
 instance ToText Grammar where
 	toText g =
@@ -48,17 +51,11 @@ instance ToText Grammar where
 instance ToTextAs GrammarFormat Production where
 	toTextAs format p =
 		concat $
-		[ toTextAs format $ production_left p
+		[ toTextAs format $ prod_left p
 		, " "
 		, prodSign
 		, " "
-		, unwords $ map (toTextAs format) $ production_right p
+		, unwords $ map (toTextAs format) $ prod_right p
 		]
 		where
 			prodSign = head $ grammarFormat_arrow format
-
-instance ToTextAs GrammarFormat Grammar where
-	toTextAs format g =
-		unlines $
-		map (toTextAs format) $
-		fromGrammar g

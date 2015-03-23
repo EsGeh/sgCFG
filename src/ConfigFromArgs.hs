@@ -32,6 +32,10 @@ usageString progName =
 	  , "FORMAT: one of default, bnf, bnfe"
 	  , "CHANGE_FORMAT: <param>=<str>"
 	  , "  param can be one of: or, arrow, lineComment"
+		, "GRAMMAR_TRANSFORMATION: can be one of:"
+		, "  annotate=<val> where <val> one of loops"
+		, "  subGrammar"
+		, "  unused"
 	  ]
 	]
 	where

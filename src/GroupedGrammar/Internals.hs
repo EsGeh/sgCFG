@@ -24,52 +24,86 @@ import qualified Data.Foldable as Fold
 
 type GroupedGrammar = GrammarGen GroupedProduction
 type GroupedProduction = GroupedProductionGen Var Symbol
-
-data GroupedProductionGen left symbol
-	= GroupedProduction {
-		groupedProd_left :: left,
-		groupedProd_right :: [[symbol]]
-	}
-	deriving (Eq, Ord, Show, Functor, Fold.Foldable, Traversable)
-groupedProdMapToLeftM f p = do
-	new <- f (groupedProd_left p)
-	return $ p{ groupedProd_left = new }
-groupedProdMapToRightM f p = do
-	new <- f (groupedProd_right p)
-	return $ p{ groupedProd_right = new }
-groupedProdMapToLeft f = runIdentity . groupedProdMapToLeftM (return . f)
-groupedProdMapToRight f = runIdentity . groupedProdMapToRightM (return . f)
+type GroupedProductionGen var symbol = ProductionGen Var [[symbol]]
+	--GrammarGen (Tagged [String] (ProductionGen Var [[TaggedSymbol]]))
 
 instance
-	(ToTextAs GrammarFormat left, ToTextAs GrammarFormat symbol) =>
-		ToTextAs GrammarFormat (GrammarGen (GroupedProductionGen left symbol)) where
-	toTextAs format groupedGrammar =
-		unlines $
-		map (toTextAs format) $
-		fromGrammar groupedGrammar
+	(Pretty left, Pretty symbol) =>
+	Pretty (ProductionGen left [[symbol]]) where
+		pretty p =
+			concat $
+			[ pretty $ prod_left p
+			, " -> "
+			, intercalate " | " $
+				map (unwords . map pretty) $
+				prod_right p
+			]
 
+{-
 instance
 	(ToTextAs GrammarFormat left, ToTextAs GrammarFormat symbol) =>
-	ToTextAs GrammarFormat (GroupedProductionGen left symbol) where
-	toTextAs format p =
-		concat $
-		[ toTextAs format $ groupedProd_left p
-		, " "
-		, head $ grammarFormat_arrow format
-		, " "
-		, showRightProdSide $ groupedProd_right p
-		]
-		where
-			showRightProdSide x =
-				intercalate (head $ grammarFormat_or format) $
-				map (unwords . map (toTextAs format)) $
-				x
+	ToTextAs GrammarFormat (ProductionGen left [[symbol]]) where
+		toTextAs format p =
+			concat $
+			[ toTextAs format $ prod_left p
+			, " "
+			, head $ grammarFormat_arrow format
+			, " "
+			, showRightProdSide $ prod_right p
+			]
+			where
+				showRightProdSide x =
+					intercalate (head $ grammarFormat_or format) $
+					map (unwords . map (toTextAs format)) $
+					x
+-}
 
+instance
+	( ToTextAs GrammarFormat left
+	, ToTextAs GrammarFormat symbol
+	, ToTextAs GrammarFormat tag
+	) =>
+	ToTextAs GrammarFormat (ProductionGen left [[Tagged [tag] symbol]]) where
+		toTextAs format p =
+			concat $
+			[ toTextAs format $ prod_left p
+			, " "
+			, head $ grammarFormat_arrow format
+			, " "
+			, showRightProdSide $ prod_right p
+			]
+			where
+				showRightProdSide x =
+					intercalate (head $ grammarFormat_or format) $
+					map (unwords . map (toTextTaggedSymbol format)) $
+					x
+
+toTextTaggedSymbol ::
+	(ToTextAs GrammarFormat sym, ToTextAs GrammarFormat tag) =>
+	GrammarFormat -> Tagged [tag] sym
+	-> String
+toTextTaggedSymbol format x =
+	let
+		valueStr = toTextAs format (value x)
+	in
+		if length (tag x) == 0 then valueStr else 
+			let
+				tagStr = intercalate ", " $ map (toTextAs format) $ tag x
+				annFormat = grammarFormat_taggedSymbol format
+				tagStrSurrounded =
+					applySymbolFormat (Just $ annotationFormat_surroundBy annFormat) $
+					tagStr
+				intersectStr = annotationFormat_intersectBy annFormat
+			in
+				intercalate intersectStr $
+					if annotationFormat_prepend annFormat
+						then [tagStrSurrounded, valueStr]
+						else [valueStr, tagStrSurrounded]
 {-
 instance ToText GroupedGrammar where
 	toText groupedGrammar =
 		unlines $
-		map (uncurry showEntry . (\x -> (groupedProd_left x, groupedProd_right x))) $ fromGroupedGrammar groupedGrammar
+		map (uncurry showEntry . (\x -> (prod_left x, prod_right x))) $ fromGroupedGrammar groupedGrammar
 		where
 			showEntry var rightRuleSides =
 				concat $

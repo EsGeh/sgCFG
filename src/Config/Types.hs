@@ -2,6 +2,7 @@ module Config.Types where
 
 import GrammarTypes
 import GrammarFormat
+import GroupedGrammar.Transformations
 import Types
 import Utils
 
@@ -43,10 +44,11 @@ data OutputSpec
 data OutputGrammarInfo
 	= OutputGrammarInfo {
 		outputGrammar_format :: FormatState,
-		outputGrammar_transformations :: [Transformation]
+		outputGrammar_transformations :: [Transformation],
+		outputGrammar_asTree :: Bool
 	}
 	deriving (Show)
-defOutputGrammarInfo f = OutputGrammarInfo (defFormatState f) []
+defOutputGrammarInfo f = OutputGrammarInfo (defFormatState f) [] False
 outputGrammarInfo_mapToFormatM f x = do
 	new <- f $ outputGrammar_format x
 	return $ x{ outputGrammar_format = new }
@@ -70,16 +72,6 @@ defFormatState f = FormatState (defaultFormat f) []
 formatState_mapToFormat f x = x{ formatState_format = f (formatState_format x) }
 formatState_mapToParamsChanged f x = x{ formatState_paramsChanged = f (formatState_paramsChanged x) }
 
-data Transformation
-	= Annotate AnnotateInfo
-	| SubGrammar SubGrammarInfo
-	deriving (Show)
-
-type SubGrammarInfo = Var
-data AnnotateInfo
-	= AnnotateWithLoops
-	deriving (Show)
-
 data FormatParam
 	= Or
 	| Arrow
@@ -93,6 +85,8 @@ instance FromPretty Transformation where
 				return $ Annotate $ AnnotateWithLoops
 			("subGrammar", var) ->
 				return $ SubGrammar $ Var var
+			("unused", []) ->
+				return $ UnusedRules
 			_ -> Left $ "fromPretty error for Transformation"
 
 instance FromPretty DefaultFormat where

@@ -15,6 +15,7 @@ import Data.List hiding (unlines)
 import Data.Traversable
 import Data.Functor
 import qualified Data.Foldable as Fold
+import Control.Monad.Identity
 
 
 data GrammarGen prod =
@@ -22,6 +23,21 @@ data GrammarGen prod =
 		fromGrammar :: [prod]
 	}
 	deriving (Show, Functor, Fold.Foldable, Traversable)
+
+data ProductionGen left right
+	= Production {
+		prod_left :: left,
+		prod_right :: right
+	}
+	deriving (Eq, Ord, Show, Functor, Fold.Foldable, Traversable)
+prod_mapToLeftM f p = do
+	new <- f (prod_left p)
+	return $ p{ prod_left = new }
+prod_mapToRightM f p = do
+	new <- f (prod_right p)
+	return $ p{ prod_right = new }
+prod_mapToLeft f = runIdentity . prod_mapToLeftM (return . f)
+prod_mapToRight f = runIdentity . prod_mapToRightM (return . f)
 
 type Symbol = Either Terminal Var
 
@@ -41,14 +57,36 @@ data Tagged tag a =
 		value :: a
 	}
 tagged = Tagged
+tagged_mapToTagM f x = do
+	new <- f $ tag x
+	return $ x{ tag = new }
+tagged_mapToValueM f x = do
+	new <- f $ value x
+	return $ x{ value = new }
+tagged_mapToTag f = runIdentity . tagged_mapToTagM (return . f)
+tagged_mapToValue f = runIdentity . tagged_mapToValueM (return . f)
 
+{-
 -- |serialize to Nothing or a String
 class ToTextMaybe a where
 	toTextMaybe :: a -> Maybe String
+-}
 
 ---------------------------------------------------
 -- instances
 ---------------------------------------------------
+
+{-
+instance
+	(Pretty left, Pretty right) =>
+	Pretty (ProductionGen left right) where
+		pretty p =
+			concat $
+			[ pretty $ prod_left p
+			, " -> "
+			, pretty $ prod_right p
+			]
+-}
 
 -- Pretty
 instance Pretty Var where
@@ -74,10 +112,22 @@ instance ToTextAs GrammarFormat Symbol where
 	toTextAs format =
 			either (toTextAs format) (toTextAs format)
 
+instance
+	(ToTextAs GrammarFormat prod) =>
+		ToTextAs GrammarFormat (GrammarGen prod) where
+	toTextAs format groupedGrammar =
+		unlines $
+		map (toTextAs format) $
+		fromGrammar groupedGrammar
+
+{-
 -- ToTextMaybe
 instance ToTextMaybe a => ToTextMaybe (Maybe a) where
 	toTextMaybe (Just x) = toTextMaybe x
 	toTextMaybe Nothing = Nothing
+instance ToTextMaybe a => ToTextMaybe [a] where
+	toTextMaybe [] = Nothing
+	toTextMaybe list = toTextMaybe x
 
 instance ToTextMaybe String where
 	toTextMaybe x = Just x
@@ -90,25 +140,4 @@ instance ToTextMaybe Terminal where
 
 instance ToTextMaybe Symbol where
 	toTextMaybe = Just . pretty
-
--- Tagged things:
-instance
-	(ToTextAs GrammarFormat symbol, ToTextMaybe tag) =>
-	ToTextAs GrammarFormat (Tagged tag symbol)
-	where
-		toTextAs format x =
-			let
-				valueStr = toTextAs format (value x)
-			in
-				flip (maybe valueStr) (toTextMaybe $ tag x) $ \tagStr ->
-				let
-					annFormat = grammarFormat_taggedSymbol format
-					tagStrSurrounded =
-						applySymbolFormat (Just $ annotationFormat_surroundBy annFormat) $
-						tagStr
-					intersectStr = annotationFormat_intersectBy annFormat
-				in
-					intercalate intersectStr $
-						if annotationFormat_prepend annFormat
-							then [tagStrSurrounded, valueStr]
-							else [valueStr, tagStrSurrounded]
+-}
