@@ -63,8 +63,16 @@ optDescrList =
 		(Opt.ReqArg outputGrouped "FORMAT")
 		"input format (append \"--change-output-format\" to modify)"
 	, Opt.Option [] ["change-output-format", "cof"] (Opt.ReqArg changeOutputFormat "CHANGE_FORMAT") "change output format"
+	, Opt.Option [] ["tree"] (Opt.NoArg outputTree) "output grammar as tree"
 	, Opt.Option ['t'] ["transformation"] (Opt.ReqArg transformation "GRAMMAR_TRANSFORMATION") "apply a transformation on grammar"
 	]
+
+outputTree =
+	cfgMapToOutputM $ mapToHeadMaybe $ \spec ->
+		case spec of
+			OutputGroupedGrammar info ->
+				return $ OutputGroupedGrammar $ info{ outputGrammar_asTree = True }
+			_ -> Nothing
 
 inputF :: String -> Config -> Maybe Config
 inputF arg cfg =

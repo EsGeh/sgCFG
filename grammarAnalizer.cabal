@@ -19,6 +19,7 @@ executable grammarAnalizer
   main-is:             Main.hs
   -- other-modules:       
   -- other-extensions:    
-  build-depends:       base >=4.7 && <4.8, parsec, mtl, containers
+  build-depends:       base == 4.*, parsec == 3.1.*, mtl == 2.2.*, containers
   hs-source-dirs:      src
   default-language:    Haskell2010
+  ghc-options: -fno-warn-tabs

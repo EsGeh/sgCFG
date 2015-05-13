@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Parse.ParseFormatFromGrammarFormat where
 
 import GrammarFormat

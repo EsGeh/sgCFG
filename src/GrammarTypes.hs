@@ -99,6 +99,13 @@ instance Pretty Symbol where
 	pretty x =
 		either pretty pretty x
 
+-- PrettyAs
+-- TODO:
+{-
+instance PrettyAs GrammarFormat Var where
+	prettyAs format x
+-}
+
 -- ToTextAs
 instance ToTextAs GrammarFormat Var where
 	toTextAs format x =
@@ -119,25 +126,3 @@ instance
 		unlines $
 		map (toTextAs format) $
 		fromGrammar groupedGrammar
-
-{-
--- ToTextMaybe
-instance ToTextMaybe a => ToTextMaybe (Maybe a) where
-	toTextMaybe (Just x) = toTextMaybe x
-	toTextMaybe Nothing = Nothing
-instance ToTextMaybe a => ToTextMaybe [a] where
-	toTextMaybe [] = Nothing
-	toTextMaybe list = toTextMaybe x
-
-instance ToTextMaybe String where
-	toTextMaybe x = Just x
-
-instance ToTextMaybe Var where
-	toTextMaybe = Just . pretty
-
-instance ToTextMaybe Terminal where
-	toTextMaybe = Just . pretty
-
-instance ToTextMaybe Symbol where
-	toTextMaybe = Just . pretty
--}

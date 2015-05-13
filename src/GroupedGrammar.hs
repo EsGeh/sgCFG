@@ -8,7 +8,7 @@ module GroupedGrammar(
 	--spanningForest,
 	groupedGrammarFromTokens,
 	groupedGrammarFromStr,
-	--toTextAsTree
+	toTextAsTree
 ) where
 
 import GroupedGrammar.Transformations
@@ -41,21 +41,27 @@ testGrammar =
 	fromTextAs (defaultFormat Default) "a -> b | c\nb -> a\nc -> \"d\""
 -}
 
-{-
+toTextAsTree :: GrammarFormat -> GroupedGrammarTagged -> String
 toTextAsTree format g =
 	let
 		graph =
-			graphFromGroupedGrammar $ g
+			graphFromGroupedGrammar prod_left (Either.rights . map value . join . prod_right) $ g
+			:: Graph.Graph Var GroupedProductionTagged
 	in
+		maybe "" Tree.drawTree $
 		do
 			startSym <-
 				liftM prod_left $
 				Maybe.listToMaybe $
 				fromGrammar g
+				:: Maybe Var
 			tree <-
+				liftM (fmap snd) $
 				Maybe.listToMaybe
 				=<< Graph.spanningForest [startSym] graph
 				:: Maybe (Tree.Tree GroupedProductionTagged)
+			return $ fmap (toTextAs format) tree
+	{-
 			return $
 				fmap
 				( toTextAs format

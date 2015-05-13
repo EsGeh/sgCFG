@@ -54,9 +54,7 @@ main = do
 							putStrLn .
 							if not asTree
 								then toTextAs format
-								else toTextAs format
-								-- TODO:
-								--else toTextAsTree
+								else toTextAsTree format
 						)
 						=<<
 						return . maybe (error "could not apply transformations") id . applyTransformations (outputGrammar_transformations info) . toTaggedGrammar

@@ -16,7 +16,7 @@ import Control.Monad
 applyTransformation :: Transformation -> GroupedGrammarTagged -> Maybe GroupedGrammarTagged
 applyTransformation t g =
 	let
-		graph = graphFromGroupedGrammar $ fromTaggedGrammar g
+		graph = graphFromGroupedGrammar (Right . prod_left) (join . prod_right) $ fromTaggedGrammar g
 	in
 		case t of
 			Annotate info ->
@@ -51,6 +51,7 @@ data Transformation
 type SubGrammarInfo = Var
 data AnnotateInfo
 	= AnnotateWithLoops
+	| AnnotateWithFirstSet
 	deriving (Show)
 
 type GroupedGrammarTagged =
@@ -83,7 +84,22 @@ toTaggedProduction =
 fromTaggedProduction = 
 	prod_mapToRight $ map $ map $ value
 
-type SeedType = (Tree.Tree GroupedProduction, [GroupedProduction])
+{-
+firstSets :: GroupedGrammarTagged -> GroupedGrammarTagged
+firstSets g =
+	firstSet :: [ProductionGen Var [[Symbol]]] -> [Symbol] -> [Terminal]
+	firstSet productions (sym:rest) =
+		case sym of
+			Left term ->
+				if term == Terminal ""
+					then
+					else [term]
+			Right var -> 
+				maybe [] id $
+				do
+					p <- find ((==var) . prod_left) productions
+					prod_right p
+-}
 
 intersectTaggedGrammars g1 g2 =
 	Grammar $
@@ -149,8 +165,11 @@ intersectTaggedGrammars g1 g2 =
 						(prod_right p2)
 -}
 
+--graphFromGroupedGrammar (Right . prod_left) (join . prod_right) g =
+
+graphFromGroupedGrammar :: Ord key => (prod -> key) -> (prod -> [key]) -> GrammarGen prod -> Graph key prod
 --graphFromGroupedGrammar :: GroupedGrammar -> GrammarGraph
-graphFromGroupedGrammar g =
+graphFromGroupedGrammar calcKey calcDest g =
 	let list = map f $ fromGrammar g
 	in
 		graphFromEdges list
@@ -158,8 +177,8 @@ graphFromGroupedGrammar g =
 		--f :: GroupedProduction -> (GroupedProduction, Symbol, [Symbol])
 		f prod =
 			( prod -- node
-			, Right $ prod_left prod -- key
-			, join $ prod_right prod) -- [key]
+			, calcKey prod -- key
+			, calcDest prod) -- [key]
 
 findLoops ::
 	Var -> GrammarGraph ->
@@ -185,6 +204,8 @@ findLoops startSymbol graph = do
 								_ -> Tagged [] sym
 		_ -> Nothing
 
+type SeedType = (Tree.Tree GroupedProduction, [GroupedProduction])
+
 findLoopsInTree :: GrammarGraph -> Tree.Tree GroupedProduction -> Tree.Tree (GroupedProduction, [Var])
 findLoopsInTree graph tree =
 	Tree.unfoldTree unfoldF (tree, [])
@@ -199,7 +220,7 @@ findLoopsInTree graph tree =
 					where
 						allBackEdges :: [Var]
 						allBackEdges =
-							filter cond $ map prod_left path
+							filter cond $ map prod_left (label:path)
 						cond var =
 							maybe False id $
 							isReachable graph
