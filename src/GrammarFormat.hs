@@ -1,14 +1,13 @@
 module GrammarFormat where
 
+import Control.Monad
+import Text.Read
 
-{-
-data GrammarOutputFormat
-	= GrammarOutputAsTree
-	| GrammarOutputFormat GrammarFormat
--}
 
 data GrammarFormat
 	= GrammarFormat {
+		grammarFormat_leftSide :: Maybe SurroundBy,
+		grammarFormat_rightSide :: Maybe SurroundBy,
 		grammarFormat_var :: Maybe SurroundBy,
 		grammarFormat_terminal :: Maybe SurroundBy,
 		grammarFormat_taggedSymbol :: AnnotationFormat,
@@ -26,6 +25,13 @@ data GrammarFormat
 		--grammarFormat_comment :: [(String, String)]
 	}
 	deriving (Show)
+gFormatMapToLeftSide f x = x{ grammarFormat_leftSide = f (grammarFormat_leftSide x) }
+gFormatMapToRightSide f x = x{ grammarFormat_rightSide = f (grammarFormat_rightSide x) }
+gFormatMapToVar
+	:: (Maybe SurroundBy -> Maybe SurroundBy)
+	-> GrammarFormat -> GrammarFormat
+gFormatMapToVar f x = x{ grammarFormat_var = f (grammarFormat_var x) }
+gFormatMapToTerminal f x = x{ grammarFormat_terminal = f (grammarFormat_terminal x) }
 gFormatMapToOr f x = x{ grammarFormat_or = f (grammarFormat_or x) }
 gFormatMapToArrow f x = x{ grammarFormat_arrow = f (grammarFormat_arrow x) }
 gFormatMapToLineComment f x = x{ grammarFormat_lineComment = f (grammarFormat_lineComment x) }
@@ -43,6 +49,9 @@ data SurroundBy
 		fromSurroundBy :: (String, String)
 	}
 	deriving (Show)
+surroundBy_fromText :: String -> Maybe SurroundBy
+surroundBy_fromText =
+	liftM SurroundBy . readMaybe
 
 data DefaultFormat
 	= Default
@@ -75,6 +84,8 @@ bnfe =
 
 def =
 	GrammarFormat {
+		grammarFormat_leftSide = Nothing,
+		grammarFormat_rightSide = Nothing,
 		grammarFormat_var = Nothing,
 		grammarFormat_terminal = Just $ SurroundBy ("\"","\""),
 		grammarFormat_taggedSymbol =

@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 module ConfigFromArgs(
 	module ConfigFromArgs,
 	module Config.Types
@@ -33,7 +34,7 @@ usageString progName =
 	  [ "where"
 	  , "FORMAT: one of default, bnf, bnfe"
 	  , "CHANGE_FORMAT: <param>=<str>"
-	  , "  param can be one of: or, arrow, lineComment"
+	  , "  param can be one of: left, right, var, terminal, or, arrow, lineComment"
 		, "GRAMMAR_TRANSFORMATION: can be one of:"
 		, "  annotate=<val> where <val> one of loops"
 		, "  subGrammar"
@@ -103,7 +104,7 @@ outputGrouped arg cfg =
 changeInputFormat :: String -> Config -> Maybe Config
 changeInputFormat arg cfg = do
 	(key, val) <- either (const Nothing) Just $ parseKeyValue arg
-	return $ cfgMapToInputFormat (applyFormatChange key val) cfg
+	cfgMapToInputFormatM (applyFormatChange key val) cfg
 
 parseKeyValue str =
 	case mapSnd (drop 1) $ span (/='=') str of
@@ -140,28 +141,56 @@ changeOutputFormat arg cfg =
 				flip mapToHeadMaybe outputCommands $ \spec ->
 					case spec of
 						OutputGrammar info  -> 
-							return $ (
-								(OutputGrammar $ outputGrammarInfo_mapToFormat (applyFormatChange key val) info)
-							)
+							--return $
+								liftM OutputGrammar $
+									outputGrammarInfo_mapToFormatM (applyFormatChange key val) info
 						OutputGroupedGrammar info -> 
-							return $ (
-								(OutputGroupedGrammar $ outputGrammarInfo_mapToFormat (applyFormatChange key val) info)
-							)
+							--return $
+								liftM OutputGroupedGrammar $
+									outputGrammarInfo_mapToFormatM (applyFormatChange key val) info
 						_ -> Nothing
 
-applyFormatChange :: FormatParam -> String -> FormatState -> FormatState
-applyFormatChange param str outputInfo =
-	case param of
-		OrFormatParam ->
-			changeF gFormatMapToOr
-		ArrowFormatParam ->
-			changeF gFormatMapToArrow 
-		LineCommentFormatParam ->
-			changeF gFormatMapToLineComment
+applyFormatChange :: FormatParam -> String -> FormatState -> Maybe FormatState
+applyFormatChange param str outputInfo
+	| param `elem` [LeftSideFormatParam, RightSideFormatParam, VarFormatParam, TerminalFormatParam] =
+		let mapToField =
+			case param of
+				LeftSideFormatParam -> gFormatMapToLeftSide
+				RightSideFormatParam -> gFormatMapToRightSide
+				VarFormatParam -> gFormatMapToVar
+				TerminalFormatParam -> gFormatMapToTerminal
+				_ -> error "internal error"
+		in
+			surroundBy_fromText str
+			>>=
+			return .
+			(\surroundByInfo -> changeF $
+				\_ -> mapToField $ const $ Just surroundByInfo
+			)
+	| otherwise =
+		let mapToField =
+			case param of
+				OrFormatParam -> gFormatMapToOr
+				ArrowFormatParam -> gFormatMapToArrow
+				LineCommentFormatParam -> gFormatMapToLineComment
+				_ -> error "internal error"
+		in
+			return $
+			changeF (\alreadySet -> mapToField (if alreadySet then (str:) else (const [str])))
 	where
+		changeF ::
+			(Bool -> GrammarFormat -> GrammarFormat)
+			-> FormatState
 		changeF f =
+			let alreadySet = param `elem` overwrittenParams
+			in
+				FormatState
+					(f alreadySet format)
+					(if alreadySet then overwrittenParams else param:overwrittenParams)
+			{-
 			case param `elem` overwrittenParams of
 				False -> FormatState (f (const [str]) format) (param:overwrittenParams)
 				True -> FormatState (f (str:) format) overwrittenParams
+			-}
 		format = formatState_format outputInfo
 		overwrittenParams = formatState_paramsChanged outputInfo

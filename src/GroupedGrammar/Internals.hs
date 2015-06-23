@@ -66,11 +66,11 @@ instance
 	ToTextAs GrammarFormat (ProductionGen left [[Tagged [tag] symbol]]) where
 		toTextAs format p =
 			concat $
-			[ toTextAs format $ prod_left p
+			[ applySymbolFormat (grammarFormat_leftSide format) $ toTextAs format $ prod_left p
 			, " "
 			, head $ grammarFormat_arrow format
 			, " "
-			, showRightProdSide $ prod_right p
+			, applySymbolFormat (grammarFormat_rightSide format) $ showRightProdSide $ prod_right p
 			]
 			where
 				showRightProdSide x =

@@ -74,7 +74,11 @@ formatState_mapToFormat f x = x{ formatState_format = f (formatState_format x) }
 formatState_mapToParamsChanged f x = x{ formatState_paramsChanged = f (formatState_paramsChanged x) }
 
 data FormatParam
-	= OrFormatParam
+	= LeftSideFormatParam
+	| RightSideFormatParam
+	| VarFormatParam
+	| TerminalFormatParam
+	| OrFormatParam
 	| ArrowFormatParam
 	| LineCommentFormatParam
 	deriving (Eq, Show)
@@ -101,6 +105,10 @@ instance FromPretty DefaultFormat where
 instance FromPretty FormatParam where
 	fromPretty str =
 		case str of
+			"left" -> return LeftSideFormatParam
+			"right" -> return RightSideFormatParam
+			"var" -> return VarFormatParam
+			"terminal" -> return TerminalFormatParam
 			"or" -> return OrFormatParam
 			"arrow" -> return ArrowFormatParam
 			"lineComment" -> return LineCommentFormatParam
