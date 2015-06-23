@@ -65,6 +65,7 @@ outputGrammarInfo_mapToTransformations f x = x{ outputGrammar_transformations = 
 data FormatState
 	= FormatState {
 		formatState_format :: GrammarFormat,
+		-- list of parameters that have been touched by the user:
 		formatState_paramsChanged :: [FormatParam]
 	}
 	deriving (Show)
@@ -73,9 +74,9 @@ formatState_mapToFormat f x = x{ formatState_format = f (formatState_format x) }
 formatState_mapToParamsChanged f x = x{ formatState_paramsChanged = f (formatState_paramsChanged x) }
 
 data FormatParam
-	= Or
-	| Arrow
-	| LineComment
+	= OrFormatParam
+	| ArrowFormatParam
+	| LineCommentFormatParam
 	deriving (Eq, Show)
 
 instance FromPretty Transformation where
@@ -100,9 +101,9 @@ instance FromPretty DefaultFormat where
 instance FromPretty FormatParam where
 	fromPretty str =
 		case str of
-			"or" -> return Or
-			"arrow" -> return Arrow
-			"lineComment" -> return LineComment
+			"or" -> return OrFormatParam
+			"arrow" -> return ArrowFormatParam
+			"lineComment" -> return LineCommentFormatParam
 			_ -> Left $ concat $ ["unknown FormatParam", "\"", str, "\""]
 
 mapToHeadMaybe f list =

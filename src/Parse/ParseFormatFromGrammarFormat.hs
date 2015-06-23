@@ -32,8 +32,8 @@ parseFormatFromGrammarFormat grammarFormat =
 orderByPrefix strings = sortBy cmp strings
 	where
 		cmp [] [] = EQ
-		cmp [] (y:ys) = GT
-		cmp (x:xs) [] = LT
+		cmp [] (_:_) = GT
+		cmp (_:_) [] = LT
 		cmp (x:xs) (y:ys) =
 			case compare x y of
 				EQ -> cmp xs ys
@@ -60,6 +60,8 @@ parseLineComment f =
 	>>
 	(noneOf ['\n']) `manyTill` (char '\n')
 
+symbol :: GrammarFormat -> Parsec String () ()
+	-> Parsec String () (Either String String)
 symbol f stop =
 	case (grammarFormat_var f, grammarFormat_terminal f) of
 		(Just surroundVar, mSurroundTerm) ->
@@ -74,6 +76,7 @@ symbol f stop =
 			(try $ liftM Left $ parseSurround surroundTerm)
 			<|>
 			(liftM Right $ parseUntilStop stop)
+		--(Nothing, Nothing) ->
 
 parseSurround surround =
 	let (prefix, suffix) = fromSurroundBy surround

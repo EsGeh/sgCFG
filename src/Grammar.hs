@@ -19,9 +19,9 @@ import GroupedGrammar
 import Parse.ParseFormatFromGrammarFormat (parseFormatFromGrammarFormat)
 import Utils (mapLeft)
 
-import Text.Parsec hiding (many, (<|>))
+--import Text.Parsec hiding (many, (<|>))
 import Control.Monad
-import Control.Applicative
+--import Control.Applicative
 
 
 instance FromTextAs GrammarFormat Grammar where

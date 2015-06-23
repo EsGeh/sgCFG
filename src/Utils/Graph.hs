@@ -6,7 +6,7 @@ import Utils
 import qualified Data.Graph as G
 import qualified Data.Tree as Tree
 import Control.Monad
-import Control.Applicative
+--import Control.Applicative
 
 
 data Graph key node
@@ -29,7 +29,7 @@ spanningForest vars graph =
 	mapM (graph_vertexFromKey graph) $ vars
 
 lookupVertex graph vertex =
-	let (node, key, destinations) = graph_nodeFromVertex graph vertex
+	let (node, key, _) = graph_nodeFromVertex graph vertex
 	in
 		(key, node)
 

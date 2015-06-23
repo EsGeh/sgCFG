@@ -26,8 +26,8 @@ import qualified Text.Parsec as P
 import qualified Data.Tree as Tree
 import Control.Monad
 import qualified Data.Either as Either
-import qualified Data.Foldable as Fold
-import Control.Applicative
+--import qualified Data.Foldable as Fold
+--import Control.Applicative
 import qualified Data.Maybe as Maybe
 
 {-
@@ -69,11 +69,13 @@ toTextAsTree format g =
 				tree
 -}
 
+{-
 tptpSyntaxFormat =
 	(defaultFormat BNF){
 		grammarFormat_arrow = ["::=",":=="],
 		grammarFormat_lineComment = ["%"]
 	}
+-}
 
 groupedGrammarFromStr descr =
 	groupedGrammarFromTokens

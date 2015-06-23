@@ -2,8 +2,8 @@ module Parse.Format where
 
 --import GrammarFormat
 import Text.Parsec as P hiding(many, (<|>))
-import Control.Monad
-import Control.Applicative
+--import Control.Monad
+--import Control.Applicative
 
 
 data ParseFormat

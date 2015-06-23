@@ -10,16 +10,16 @@ module GroupedGrammar.Internals where
 import GrammarTypes
 import Types
 import GrammarFormat
-import Utils (unlines)
+--import Utils (unlines)
 
 import Prelude hiding(unlines)
 import Data.List hiding (unlines)
-import qualified Data.List as List
-import Control.Applicative
-import Control.Monad.Identity
-import Data.Traversable
-import Data.Functor
-import qualified Data.Foldable as Fold
+--import qualified Data.List as List
+--import Control.Applicative
+--import Control.Monad.Identity
+--import Data.Traversable
+--import Data.Functor
+--import qualified Data.Foldable as Fold
 
 
 type GroupedGrammar = GrammarGen GroupedProduction

@@ -63,7 +63,7 @@ data SymbolTag
 	= ProductionRef Var
 
 instance ToTextAs GrammarFormat SymbolTag where
-	toTextAs _ t = "!"
+	toTextAs _ _ = "!"
 
 type GrammarGraph =
 	Graph Symbol (GroupedProductionGen Var Symbol)
@@ -111,7 +111,7 @@ intersectTaggedGrammars g1 g2 =
 		`merge`
 		productions2
 		where
-			compareLeft a b = fromTaggedProduction a `compare` fromTaggedProduction  b
+			--compareLeft a b = fromTaggedProduction a `compare` fromTaggedProduction  b
 			merge :: [GroupedProductionTagged] -> [GroupedProductionTagged] -> [GroupedProductionTagged]
 			merge p1 p2 =
 				case p1 of
@@ -165,10 +165,7 @@ intersectTaggedGrammars g1 g2 =
 						(prod_right p2)
 -}
 
---graphFromGroupedGrammar (Right . prod_left) (join . prod_right) g =
-
 graphFromGroupedGrammar :: Ord key => (prod -> key) -> (prod -> [key]) -> GrammarGen prod -> Graph key prod
---graphFromGroupedGrammar :: GroupedGrammar -> GrammarGraph
 graphFromGroupedGrammar calcKey calcDest g =
 	let list = map f $ fromGrammar g
 	in
@@ -241,9 +238,9 @@ groupedGrammarSub vars graph =
 	) $
 	spanningForest (map Right vars) graph
 
-fst3 (a,b,c) = a
-snd3 (a,b,c) = b
-thd3 (a,b,c) = c
+fst3 (a,_,_) = a
+snd3 (_,b,_) = b
+thd3 (_,_,c) = c
 
 {-
 graphFromGroupedGrammar :: GroupedGrammar -> Graph Var GroupedProduction 

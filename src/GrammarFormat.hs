@@ -12,6 +12,12 @@ data GrammarFormat
 		grammarFormat_var :: Maybe SurroundBy,
 		grammarFormat_terminal :: Maybe SurroundBy,
 		grammarFormat_taggedSymbol :: AnnotationFormat,
+		{-
+			the following options are a list of strings.
+			first entry is default.
+			if the first entry can not be used (especially in case of parsing),
+				further entries are tried.
+		-}
 		grammarFormat_or :: [String],
 		grammarFormat_arrow :: [String],
 		grammarFormat_whitespaces :: [String],
@@ -50,6 +56,7 @@ defaultFormat f =
 		BNF -> bnf
 		BNFE -> bnfe
 
+-- backus naur form
 bnf =
 	def{
 		grammarFormat_var = Just $ SurroundBy ("<",">"),
@@ -58,6 +65,7 @@ bnf =
 		--grammarFormat_arrow = ["::="]
 	}
 
+-- extended backus naur form
 bnfe =
 	def{
 		grammarFormat_var = Nothing,
@@ -76,7 +84,9 @@ def =
 				annotationFormat_surroundBy =
 					SurroundBy ("(",")")
 			},
-		grammarFormat_or = ["\n  |", "\n|", "|\n", "|"],
+		grammarFormat_or =
+			[ "\n  |"
+			, "\n|", "|\n", "|"],
 		--grammarFormat_or = ["\n|", "|\n", "|"],
 		grammarFormat_arrow = ["->\n  ", "->"],
 		--grammarFormat_arrow = ["->"],

@@ -11,9 +11,9 @@ module GrammarTypes where
 import Types
 import GrammarFormat
 
-import Data.List hiding (unlines)
-import Data.Traversable
-import Data.Functor
+--import Data.List hiding (unlines)
+--import Data.Traversable
+--import Data.Functor
 import qualified Data.Foldable as Fold
 import Control.Monad.Identity
 

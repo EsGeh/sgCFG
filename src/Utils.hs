@@ -12,9 +12,9 @@ isLeft (Right _) = False
 isLeft (Left _) = True
 
 mapLeft f (Left x) = Left (f x)
-mapLeft f (Right x) = Right x
+mapLeft _ (Right x) = Right x
 
-mapRight f (Left x) = Left x
+mapRight _ (Left x) = Left x
 mapRight f (Right x) = Right (f x)
 
 uncurry3 f (a,b,c) = f a b c
@@ -25,7 +25,7 @@ concLefts ::
 concLefts l =
 	let
 		(lefts, rest) = span isLeft l
-		meltedLefts = Left $ map (\x -> case x of { Left x' -> x' }) $ lefts :: Either [a] b
+		meltedLefts = Left $ map (\x -> case x of { Left x' -> x'; _ -> error "this error never occurs" }) $ lefts :: Either [a] b
 	in
 		case meltedLefts of
 			Left [] -> processRest rest

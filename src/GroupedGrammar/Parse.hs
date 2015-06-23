@@ -3,7 +3,7 @@
 module GroupedGrammar.Parse where
 
 import GrammarTypes
-import GroupedGrammar.Internals
+--import GroupedGrammar.Internals
 import Parse.Token
 import Types
 
@@ -54,7 +54,7 @@ splitBy cond l =
 			in
 				[s] ++ case rest of
 					[] -> []
-					(y:ys) -> splitBy cond ys
+					(_:ys) -> splitBy cond ys
 
 parseSymbol ::
 	Monad m =>

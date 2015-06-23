@@ -4,17 +4,18 @@ module ConfigFromArgs(
 ) where
 
 import Config.Types
-import Grammar
+--import Grammar
 import GrammarFormat
 import Types
-import Utils (mapFst, mapSnd)
+import Utils (mapSnd)
 
 import qualified System.Console.GetOpt as Opt
 import Control.Monad
-import Text.Read
+--import Text.Read
 
-import Control.Applicative
+--import Control.Applicative
 
+configFromArgs :: [String] -> Maybe Config
 configFromArgs args =
 	case Opt.getOpt Opt.RequireOrder optDescrList args of
 		(options, nonOptions, []) ->
@@ -24,6 +25,7 @@ configFromArgs args =
 				f $ defConfig
 		(_,_, errMessages) -> Nothing --errMessages
 
+usageString :: String -> String
 usageString progName =
 	unwords $
 	[ Opt.usageInfo header optDescrList
@@ -90,8 +92,6 @@ outputF arg cfg =
 		format <- either (const Nothing) Just $ fromPretty arg
 		return $
 			cfgMapToOutput ((OutputGrammar $ defOutputGrammarInfo format):) cfg
-		--return $ cfgMapToOutput ((OutputGrammar (format,[])):) cfg
-		--return $ cfg{ cfg_inputFormat = format }
 
 outputGrouped :: String -> Config -> Maybe Config
 outputGrouped arg cfg =
@@ -99,8 +99,6 @@ outputGrouped arg cfg =
 		format <- either (const Nothing) Just $ fromPretty arg
 		return $
 			cfgMapToOutput ((OutputGroupedGrammar $ defOutputGrammarInfo format):) cfg
-		--return $ cfgMapToOutput ((OutputGroupedGrammar (format, [])):) cfg
-		--return $ cfg{ cfg_inputFormat = format }
 
 changeInputFormat :: String -> Config -> Maybe Config
 changeInputFormat arg cfg = do
@@ -150,59 +148,20 @@ changeOutputFormat arg cfg =
 								(OutputGroupedGrammar $ outputGrammarInfo_mapToFormat (applyFormatChange key val) info)
 							)
 						_ -> Nothing
-			{-
-			changeF :: FormatParam -> String -> [OutputSpec] -> Maybe [OutputSpec]
-			changeF key val outputCommands =
-				case outputCommands of
-					(spec:rest) -> 
-						case spec of
-							OutputGrammar info  -> 
-								return $ (
-									(OutputGrammar $ outputGrammarInfo_mapToFormat (applyFormatChange key val) info)
-									:
-									rest
-								)
-							OutputGroupedGrammar info -> 
-								return $ (
-									(OutputGroupedGrammar $ outputGrammarInfo_mapToFormat (applyFormatChange key val) info)
-									:
-									rest
-								)
-								--return $ ((OutputGroupedGrammar $ (formatState_mapToFormat $ applyFormatChange key val) info): rest)
-								--return $ (OutputGroupedGrammar (applyFormatChange key val format): rest)
-					_ -> Nothing
-			-}
 
 applyFormatChange :: FormatParam -> String -> FormatState -> FormatState
 applyFormatChange param str outputInfo =
-	let 
-	in
-		case param of
-			Or ->
-				changeF gFormatMapToOr
-			Arrow ->
-				changeF gFormatMapToArrow 
-			LineComment ->
-				changeF gFormatMapToLineComment
-		where
-			changeF f =
-				case param `elem` overwrittenParams of
-					False -> FormatState (f (const [str]) format) (param:overwrittenParams)
-					True -> FormatState (f (str:) format) overwrittenParams
-			format = formatState_format outputInfo
-			overwrittenParams = formatState_paramsChanged outputInfo
-{-
-applyFormatChange param str (format, overwrittenParams) =
 	case param of
-		Or ->
+		OrFormatParam ->
 			changeF gFormatMapToOr
-		Arrow ->
+		ArrowFormatParam ->
 			changeF gFormatMapToArrow 
-		LineComment ->
+		LineCommentFormatParam ->
 			changeF gFormatMapToLineComment
 	where
 		changeF f =
 			case param `elem` overwrittenParams of
-				False -> (f (const [str]) format, param:overwrittenParams)
-				True -> (f (str:) format, overwrittenParams)
--}
+				False -> FormatState (f (const [str]) format) (param:overwrittenParams)
+				True -> FormatState (f (str:) format) overwrittenParams
+		format = formatState_format outputInfo
+		overwrittenParams = formatState_paramsChanged outputInfo

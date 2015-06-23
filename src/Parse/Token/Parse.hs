@@ -4,7 +4,7 @@ module Parse.Token.Parse where
 
 import Parse.Format
 import Parse.Token.Internals
-import Utils (mapLeft, concLefts)
+import Utils (concLefts)
 
 import Text.Parsec hiding(many, (<|>))
 import Control.Applicative
