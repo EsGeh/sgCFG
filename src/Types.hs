@@ -3,6 +3,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Types where
 
+import Control.Monad.Identity
+
 
 {- |to single line string -}
 class Pretty a where
@@ -28,3 +30,7 @@ type ParseError = String
 
 instance ToText String where
 	toText = id
+
+
+fromMonadicLens lens f =
+	runIdentity . lens (return . f)

@@ -1,6 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
+--{-# LANGUAGE FlexibleContexts #-}
 module GroupedGrammar(
 	module GroupedGrammar.Internals,
 	module GroupedGrammar.Transformations,
@@ -29,6 +30,7 @@ import qualified Data.Either as Either
 --import qualified Data.Foldable as Fold
 --import Control.Applicative
 import qualified Data.Maybe as Maybe
+--import Data.List
 
 {-
 test =
@@ -41,17 +43,17 @@ testGrammar =
 	fromTextAs (defaultFormat Default) "a -> b | c\nb -> a\nc -> \"d\""
 -}
 
-toTextAsTree :: GrammarFormat -> GroupedGrammarTagged -> String
+toTextAsTree :: GrammarFormat -> GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag] -> String
 toTextAsTree format g =
 	let
 		graph =
-			graphFromGroupedGrammar prod_left (Either.rights . map value . join . prod_right) $ g
-			:: Graph.Graph Var GroupedProductionTagged
+			graphFromGroupedGrammar (prod_left . value) (Either.rights . map value . join . prod_right. value) $ g
+			:: Graph.Graph Var (GroupedProduction_ProdAndSymbolsTagged ProductionTag [SymbolTag])
 	in
 		maybe "" Tree.drawTree $
 		do
 			startSym <-
-				liftM prod_left $
+				liftM (prod_left . value) $
 				Maybe.listToMaybe $
 				fromGrammar g
 				:: Maybe Var
@@ -59,23 +61,8 @@ toTextAsTree format g =
 				liftM (fmap snd) $
 				Maybe.listToMaybe
 				=<< Graph.spanningForest [startSym] graph
-				:: Maybe (Tree.Tree GroupedProductionTagged)
+				:: Maybe (Tree.Tree (GroupedProduction_ProdAndSymbolsTagged ProductionTag [SymbolTag]))
 			return $ fmap (toTextAs format) tree
-	{-
-			return $
-				fmap
-				( toTextAs format
-				) $
-				tree
--}
-
-{-
-tptpSyntaxFormat =
-	(defaultFormat BNF){
-		grammarFormat_arrow = ["::=",":=="],
-		grammarFormat_lineComment = ["%"]
-	}
--}
 
 groupedGrammarFromStr descr =
 	groupedGrammarFromTokens
@@ -84,6 +71,14 @@ groupedGrammarFromStr descr =
 
 groupedGrammarFromTokens =
 	mapLeft show . P.parse parseGroupedGrammar ""
+
+instance
+	ToTextAs GrammarFormat (GroupedProduction_ProdAndSymbolsTagged ProductionTag [SymbolTag]) where
+		toTextAs format p =
+			unwords $
+				[ toTextAs format $ tag p
+				, toTextAs format $ value p
+				]
 
 instance FromTextAs GrammarFormat GroupedGrammar where
 	fromTextAs grammarFormat str =

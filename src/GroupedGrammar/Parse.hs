@@ -66,6 +66,7 @@ parseSymbol =
 			case t of
 				VarToken info -> Right $ Var $ fromToken info
 				TerminalToken info -> Left $ Terminal $ fromToken info
+				_ -> error "parseSymbol error"
 
 oneOf' tokT =
 	tok

@@ -88,6 +88,8 @@ instance FromPretty Transformation where
 		case mapSnd (drop 1) $ span (/='=') str of
 			("annotate", "loops") ->
 				return $ Annotate $ AnnotateWithLoops
+			("annotate", "first") ->
+				return $ Annotate $ AnnotateWithFirstSet
 			("subGrammar", var) ->
 				return $ SubGrammar $ Var var
 			("unused", []) ->

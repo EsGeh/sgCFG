@@ -24,7 +24,7 @@ import Data.List hiding (unlines)
 
 type GroupedGrammar = GrammarGen GroupedProduction
 type GroupedProduction = GroupedProductionGen Var Symbol
-type GroupedProductionGen var symbol = ProductionGen Var [[symbol]]
+type GroupedProductionGen var symbol = ProductionGen var [[symbol]]
 	--GrammarGen (Tagged [String] (ProductionGen Var [[TaggedSymbol]]))
 
 instance

@@ -15,14 +15,13 @@ import GrammarFormat
 --import Data.Traversable
 --import Data.Functor
 import qualified Data.Foldable as Fold
-import Control.Monad.Identity
 
 
 data GrammarGen prod =
 	Grammar {
 		fromGrammar :: [prod]
 	}
-	deriving (Show, Functor, Fold.Foldable, Traversable)
+	deriving (Eq, Ord, Show, Functor, Fold.Foldable, Traversable)
 
 data ProductionGen left right
 	= Production {
@@ -36,10 +35,14 @@ prod_mapToLeftM f p = do
 prod_mapToRightM f p = do
 	new <- f (prod_right p)
 	return $ p{ prod_right = new }
-prod_mapToLeft f = runIdentity . prod_mapToLeftM (return . f)
-prod_mapToRight f = runIdentity . prod_mapToRightM (return . f)
+prod_mapToLeft =
+	fromMonadicLens prod_mapToLeftM
+prod_mapToRight =
+	fromMonadicLens prod_mapToRightM
 
 type Symbol = Either Terminal Var
+
+epsilon = Terminal ""
 
 newtype Terminal = Terminal {
 	terminal_name :: String
@@ -56,6 +59,7 @@ data Tagged tag a =
 		tag :: tag,
 		value :: a
 	}
+	deriving( Eq, Ord, Show)
 tagged = Tagged
 tagged_mapToTagM f x = do
 	new <- f $ tag x
@@ -63,8 +67,10 @@ tagged_mapToTagM f x = do
 tagged_mapToValueM f x = do
 	new <- f $ value x
 	return $ x{ value = new }
-tagged_mapToTag f = runIdentity . tagged_mapToTagM (return . f)
-tagged_mapToValue f = runIdentity . tagged_mapToValueM (return . f)
+tagged_mapToTag =
+	fromMonadicLens tagged_mapToTagM
+tagged_mapToValue =
+	fromMonadicLens tagged_mapToValueM
 
 {-
 -- |serialize to Nothing or a String

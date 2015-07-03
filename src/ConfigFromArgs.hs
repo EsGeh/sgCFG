@@ -19,7 +19,7 @@ import Control.Monad
 configFromArgs :: [String] -> Maybe Config
 configFromArgs args =
 	case Opt.getOpt Opt.RequireOrder optDescrList args of
-		(options, nonOptions, []) ->
+		(options, _, []) ->
 			let
 				f = foldl (\f g -> f >=> g) return options -- :: [PartialCfg -> Maybe PartialCfg] -> PartialCfg -> Maybe PartialCfg
 			in
@@ -36,7 +36,7 @@ usageString progName =
 	  , "CHANGE_FORMAT: <param>=<str>"
 	  , "  param can be one of: left, right, var, terminal, or, arrow, lineComment"
 		, "GRAMMAR_TRANSFORMATION: can be one of:"
-		, "  annotate=<val> where <val> one of loops"
+		, "  annotate=<val> where <val> one of loops, first"
 		, "  subGrammar"
 		, "  unused"
 	  ]
@@ -45,7 +45,10 @@ usageString progName =
 		header =
 			unlines $
 			[ concat [ "usage: ", progName , " OPTIONS" ]
-			, "OPTIONS:"
+			, "OPTIONS"
+			, "needed: -i, -o."
+			, "appending -cif, cof changes input/output formats"
+			, "if \"-o grouped\" is in the list, -t can be appended to apply transformations"
 			]
 
 optDescrList :: [Opt.OptDescr (Config -> Maybe Config)]

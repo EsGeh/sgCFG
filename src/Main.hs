@@ -57,12 +57,12 @@ main = do
 								else toTextAsTree format
 						)
 						=<<
-						return . maybe (error "could not apply transformations") id . applyTransformations (outputGrammar_transformations info) . toTaggedGrammar
+						(return . maybe (error "could not apply transformations") id . applyTransformations (outputGrammar_transformations info) . toProdAndSymbolsTagged prodTag_empty . toTaggedGrammar :: GroupedGrammar -> IO (GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag]))
 						=<<
 						failOrVal "error parsing grammar" errOrGroupedGrammar
 	sequence_ $ map outputAction outputCommands
 
-applyTransformations :: [Transformation] -> GroupedGrammarTagged -> Maybe GroupedGrammarTagged
+applyTransformations :: [Transformation] -> GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag] -> Maybe (GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag])
 applyTransformations t =
 	(foldl (>=>) return $ map applyTransformation t)
 
