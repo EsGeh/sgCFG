@@ -14,6 +14,7 @@ import GrammarFormat
 
 import Prelude hiding(unlines)
 import Data.List hiding (unlines)
+import qualified Data.Set as S
 --import qualified Data.List as List
 --import Control.Applicative
 --import Control.Monad.Identity
@@ -22,10 +23,30 @@ import Data.List hiding (unlines)
 --import qualified Data.Foldable as Fold
 
 
+type GroupedGrammarTagged symbolTag =
+	GrammarGen (GroupedProductionTagged symbolTag)
+type GroupedGrammar_ProdAndSymbolsTagged productionTag symbolTag =
+	GrammarGen (GroupedProduction_ProdAndSymbolsTagged productionTag symbolTag)
+
+type GroupedProductionTagged symbolTag =
+	GroupedProductionGen Var (Tagged symbolTag Symbol)
+type GroupedProduction_ProdAndSymbolsTagged productionTag symbolTag =
+	Tagged productionTag (GroupedProductionTagged symbolTag)
+
+data ProductionTag = ProductionTag {
+		prodTag_firstSet :: Maybe FirstSet
+	}
+	deriving( Eq, Ord )
+
+prodTag_empty = ProductionTag Nothing
+prodTag_mapToFirstSet f t = t{ prodTag_firstSet = f (prodTag_firstSet t) }
+
 type GroupedGrammar = GrammarGen GroupedProduction
 type GroupedProduction = GroupedProductionGen Var Symbol
 type GroupedProductionGen var symbol = ProductionGen var [[symbol]]
 	--GrammarGen (Tagged [String] (ProductionGen Var [[TaggedSymbol]]))
+
+type FirstSet = S.Set Terminal
 
 instance
 	(Pretty left, Pretty symbol) =>

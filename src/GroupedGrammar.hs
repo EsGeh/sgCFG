@@ -32,17 +32,6 @@ import qualified Data.Either as Either
 import qualified Data.Maybe as Maybe
 --import Data.List
 
-{-
-test =
-	findLoops (Var "a") $
-	graphFromGroupedGrammar $
-	testGrammar
-
-testGrammar =
-	either (const $ error "") id $
-	fromTextAs (defaultFormat Default) "a -> b | c\nb -> a\nc -> \"d\""
--}
-
 toTextAsTree :: GrammarFormat -> GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag] -> String
 toTextAsTree format g =
 	let
