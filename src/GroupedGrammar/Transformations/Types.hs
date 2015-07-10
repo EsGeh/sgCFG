@@ -1,5 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module GroupedGrammar.Transformations.Types where
 
 import GroupedGrammar.Internals
@@ -15,6 +16,7 @@ import Data.List
 
 data Transformation
 	= Annotate AnnotateInfo
+	| LeftFactor
 	| SubGrammar SubGrammarInfo
 	| UnusedRules
 	deriving (Show)
@@ -92,18 +94,21 @@ toSeparateProdTags g =
 			.
 			fromGrammar
 
-fromSeparateProdTags :: GroupedGrammar_SeparateProdTags prodTag symbolTag -> GroupedGrammar_ProdAndSymbolsTagged prodTag symbolTag
-fromSeparateProdTags g =
+fromSeparateProdTags ::
+	forall prodTag symbolTag .
+	prodTag -> GroupedGrammar_SeparateProdTags prodTag symbolTag -> GroupedGrammar_ProdAndSymbolsTagged prodTag symbolTag
+fromSeparateProdTags defProdTag g =
 	let
 		grammar = ggSeparateProdTags_grammar g
 	in
 		fmap annotateProd grammar
 	where
+		annotateProd :: GroupedProductionTagged symbolTag -> GroupedProduction_ProdAndSymbolsTagged prodTag symbolTag  
 		annotateProd prod =
 			let annotations = ggSeparateProdTags_ruleAnnotations g
 			in
 				case M.lookup (prod_left prod) annotations of
-					Nothing -> error "fromSeparateProdTags error"
+					Nothing -> tagged defProdTag prod
 					Just ann -> tagged ann prod
 
 instance ToTextAs GrammarFormat SymbolTag where

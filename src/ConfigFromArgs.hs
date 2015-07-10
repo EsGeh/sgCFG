@@ -37,6 +37,7 @@ usageString progName =
 	  , "  param can be one of: left, right, var, terminal, or, arrow, lineComment"
 		, "GRAMMAR_TRANSFORMATION: can be one of:"
 		, "  annotate=<val> where <val> one of loops, first"
+		, "  leftFactor"
 		, "  subGrammar"
 		, "  unused"
 	  ]
@@ -64,10 +65,10 @@ optDescrList =
 		"output the input stream as stream of tokens"
 	, Opt.Option ['o'] ["output"]
 		(Opt.ReqArg outputF "FORMAT")
-		"input format (append \"--change-output-format\" to modify)"
+		"output format (append \"--change-output-format\" to modify)"
 	, Opt.Option ['g'] ["output-grouped"]
 		(Opt.ReqArg outputGrouped "FORMAT")
-		"input format (append \"--change-output-format\" to modify)"
+		"output format (append \"--change-output-format\" to modify)"
 	, Opt.Option [] ["change-output-format", "cof"] (Opt.ReqArg changeOutputFormat "CHANGE_FORMAT") "change output format"
 	, Opt.Option [] ["tree"] (Opt.NoArg outputTree) "output grammar as tree"
 	, Opt.Option ['t'] ["transformation"] (Opt.ReqArg transformation "GRAMMAR_TRANSFORMATION") "apply a transformation on grammar"

@@ -5,6 +5,7 @@ import GroupedGrammar.Internals
 import GroupedGrammar.Transformations.Types
 import GrammarTypes
 import Types
+import Utils
 
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -16,12 +17,6 @@ annotateWithFirstSets ::
 annotateWithFirstSets g =
 	firstTimeNotChanging g $
 	iterate firstSetsStep g
-	where
-		firstTimeNotChanging :: Eq a => a -> [a] -> a
-		firstTimeNotChanging def [] = def
-		firstTimeNotChanging _ [a] = a
-		firstTimeNotChanging _ (a:b:_) | a == b = a
-		firstTimeNotChanging def (_:b:bs) = firstTimeNotChanging def $ b:bs
 
 firstSetsStep :: forall symbolTag .
 	Eq symbolTag

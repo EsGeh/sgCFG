@@ -36,3 +36,9 @@ concLefts l =
 					[] -> []
 					(x:xs) -> mapLeft (const $ []) x : concLefts xs
 				)
+
+firstTimeNotChanging :: Eq a => a -> [a] -> a
+firstTimeNotChanging def [] = def
+firstTimeNotChanging _ [a] = a
+firstTimeNotChanging _ (a:b:_) | a == b = a
+firstTimeNotChanging def (_:b:bs) = firstTimeNotChanging def $ b:bs
