@@ -68,7 +68,7 @@ splitProduction prod =
 						return $ return $ Production (prod_left prod) [pref]
 					(pref, rests) ->
 						do
-							newVar <- getNewVar
+							newVar <- getSimilarVar $ prod_left prod
 							return $
 								Production (prod_left prod) [pref ++ [Right newVar]]
 								: [Production newVar rests]
