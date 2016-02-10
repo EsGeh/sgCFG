@@ -57,7 +57,12 @@ firstSetsStep g =
 										((Right var):xs) ->
 											let
 												directFirst =
-													maybe (S.singleton $ Terminal $ "FIRST(" ++ pretty var ++ ")") id $
+													maybe (
+														S.singleton $
+														Terminal $
+														pretty var
+														--"FIRST(" ++ pretty var ++ ")"
+													) id $
 													lookup var
 											in
 												if not $ epsilon `S.member` directFirst

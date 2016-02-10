@@ -67,12 +67,23 @@ instance ToTextAs GrammarFormat SymbolTag where
 instance ToTextAs GrammarFormat ProductionTag where
 	toTextAs format x =
 		maybe "" id $
-			(prodTag_firstSet x) >>= \set -> return $
+		fmap printFirstSet (prodTag_firstSet x)
+		where
+			printFirstSet set =
 				concat $
-					[ "FIRST = { "
-					, intercalate ", " $ fmap (toTextAs format) $ S.toList $ set
-					, "}"
-					]
+				[ "FIRST={"
+				, intercalate ", " $ fmap (toTextAs format) $ S.toList $ set
+				, "}"
+				]
+		{-
+		maybe "" id $
+		(prodTag_firstSet x) >>= \set -> return $
+			concat $
+				[ "FIRST={"
+				, intercalate ", " $ fmap (toTextAs format) $ S.toList $ set
+				, "}"
+				]
+		-}
 
 instance
 	( ToTextAs GrammarFormat left
@@ -97,10 +108,19 @@ instance
 instance
 	ToTextAs GrammarFormat (GroupedProduction_ProdAndSymbolsTagged ProductionTag [SymbolTag]) where
 		toTextAs format p =
+			let
+				tagStr = toTextAs format $ tag p
+				prodStr = toTextAs format $ value p
+			in
+				if tagStr /= ""
+				then unwords [tagStr, prodStr]
+				else prodStr
+			{-
 			unwords $
 				[ toTextAs format $ tag p
 				, toTextAs format $ value p
 				]
+			-}
 
 toTextTaggedSymbol ::
 	(ToTextAs GrammarFormat sym, ToTextAs GrammarFormat tag) =>

@@ -101,12 +101,14 @@ def =
 			, "\n|"
 			, "|\n"
 			, "|"
+			, "\n\t|"
 			],
 		--grammarFormat_or = ["\n|", "|\n", "|"],
 		grammarFormat_arrow =
 			[ "->\n  "
 			, "->\n "
 			, "->"
+			, "->\n\t"
 			],
 		--grammarFormat_arrow = ["->"],
 		grammarFormat_whitespaces = [" "],
