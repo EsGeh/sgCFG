@@ -12,7 +12,7 @@ import Data.List
 parseFormatFromGrammarFormat grammarFormat =
 	ParseFormat {
 		parseFormat_symbol =
-			symbol grammarFormat,
+			parseSymbol grammarFormat,
 		parseFormat_or =
 			map (P.try . P.string) $
 			orderByPrefix $
@@ -29,6 +29,11 @@ parseFormatFromGrammarFormat grammarFormat =
 		parseFormat_prodSep = map (P.try . P.string) $ grammarFormat_prodSep grammarFormat
 	}
 
+{-
+	if string a is a prefix of string b, then b will come before a
+	ex.:
+	orderByPrefix ["a", "ab", "cde"] == ["ab", "a", "cde"]
+-}
 orderByPrefix strings = sortBy cmp strings
 	where
 		cmp [] [] = EQ
@@ -50,19 +55,21 @@ orderByPrefix =
 					else GT
 -}
 
+{-
 commonPrefix a b =
 	case (a,b) of
 		(x:xs, y:ys) | x == y -> x:(commonPrefix xs ys)
 		_ -> ""
+-}
 
 parseLineComment f =
 	(choice $ map (P.try . P.string) $ grammarFormat_lineComment f)
 	>>
 	(noneOf ['\n']) `manyTill` (char '\n')
 
-symbol :: GrammarFormat -> Parsec String () ()
+parseSymbol :: GrammarFormat -> Parsec String () ()
 	-> Parsec String () (Either String String)
-symbol f stop =
+parseSymbol f stop =
 	case (grammarFormat_var f, grammarFormat_terminal f) of
 		(Just surroundVar, mSurroundTerm) ->
 			(try $ liftM Right $ parseSurround surroundVar)

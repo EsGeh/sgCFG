@@ -5,9 +5,9 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveTraversable #-}
-module GroupedGrammar.Internals where
+module GroupedGrammar.Types where
 
-import GrammarTypes
+import Grammar.Types
 import Types
 import GrammarFormat
 --import Utils (unlines)
@@ -15,13 +15,18 @@ import GrammarFormat
 import Prelude hiding(unlines)
 import Data.List hiding (unlines)
 import qualified Data.Set as S
---import qualified Data.List as List
---import Control.Applicative
---import Control.Monad.Identity
---import Data.Traversable
---import Data.Functor
---import qualified Data.Foldable as Fold
 
+
+---------------------------------------------------
+-- type synonyms for grouped grammars and productions
+
+type GroupedGrammar = GrammarGen GroupedProduction
+type GroupedProduction = GroupedProductionGen Var Symbol
+type GroupedProductionGen var symbol = ProductionGen var [[symbol]]
+	--GrammarGen (Tagged [String] (ProductionGen Var [[TaggedSymbol]]))
+
+---------------------------------------------------
+-- type synonyms for "tagged" grammars and productions:
 
 type GroupedGrammarTagged symbolTag =
 	GrammarGen (GroupedProductionTagged symbolTag)
@@ -33,6 +38,9 @@ type GroupedProductionTagged symbolTag =
 type GroupedProduction_ProdAndSymbolsTagged productionTag symbolTag =
 	Tagged productionTag (GroupedProductionTagged symbolTag)
 
+---------------------------------------------------
+-- concrete types for tagged grammars and productions:
+
 data ProductionTag = ProductionTag {
 		prodTag_firstSet :: Maybe FirstSet
 	}
@@ -41,43 +49,30 @@ data ProductionTag = ProductionTag {
 prodTag_empty = ProductionTag Nothing
 prodTag_mapToFirstSet f t = t{ prodTag_firstSet = f (prodTag_firstSet t) }
 
-type GroupedGrammar = GrammarGen GroupedProduction
-type GroupedProduction = GroupedProductionGen Var Symbol
-type GroupedProductionGen var symbol = ProductionGen var [[symbol]]
-	--GrammarGen (Tagged [String] (ProductionGen Var [[TaggedSymbol]]))
-
 type FirstSet = S.Set Terminal
 
-instance
-	(Pretty left, Pretty symbol) =>
-	Pretty (ProductionGen left [[symbol]]) where
-		pretty p =
-			concat $
-			[ pretty $ prod_left p
-			, " -> "
-			, intercalate " | " $
-				map (unwords . map pretty) $
-				prod_right p
-			]
+data SymbolTag
+	= ProductionRef Var
+	deriving( Eq, Ord )
 
-{-
-instance
-	(ToTextAs GrammarFormat left, ToTextAs GrammarFormat symbol) =>
-	ToTextAs GrammarFormat (ProductionGen left [[symbol]]) where
-		toTextAs format p =
-			concat $
-			[ toTextAs format $ prod_left p
-			, " "
-			, head $ grammarFormat_arrow format
-			, " "
-			, showRightProdSide $ prod_right p
-			]
-			where
-				showRightProdSide x =
-					intercalate (head $ grammarFormat_or format) $
-					map (unwords . map (toTextAs format)) $
-					x
--}
+---------------------------------------------------
+-- instances
+---------------------------------------------------
+
+-- ToTextAs
+
+instance ToTextAs GrammarFormat SymbolTag where
+	toTextAs _ _ = "!"
+
+instance ToTextAs GrammarFormat ProductionTag where
+	toTextAs format x =
+		maybe "" id $
+			(prodTag_firstSet x) >>= \set -> return $
+				concat $
+					[ "FIRST = { "
+					, intercalate ", " $ fmap (toTextAs format) $ S.toList $ set
+					, "}"
+					]
 
 instance
 	( ToTextAs GrammarFormat left
@@ -98,6 +93,14 @@ instance
 					intercalate (head $ grammarFormat_or format) $
 					map (unwords . map (toTextTaggedSymbol format)) $
 					x
+
+instance
+	ToTextAs GrammarFormat (GroupedProduction_ProdAndSymbolsTagged ProductionTag [SymbolTag]) where
+		toTextAs format p =
+			unwords $
+				[ toTextAs format $ tag p
+				, toTextAs format $ value p
+				]
 
 toTextTaggedSymbol ::
 	(ToTextAs GrammarFormat sym, ToTextAs GrammarFormat tag) =>
@@ -120,6 +123,21 @@ toTextTaggedSymbol format x =
 					if annotationFormat_prepend annFormat
 						then [tagStrSurrounded, valueStr]
 						else [valueStr, tagStrSurrounded]
+
+-- Pretty
+
+instance
+	(Pretty left, Pretty symbol) =>
+	Pretty (ProductionGen left [[symbol]]) where
+		pretty p =
+			concat $
+			[ pretty $ prod_left p
+			, " -> "
+			, intercalate " | " $
+				map (unwords . map pretty) $
+				prod_right p
+			]
+
 {-
 instance ToText GroupedGrammar where
 	toText groupedGrammar =

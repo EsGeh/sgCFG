@@ -11,8 +11,8 @@ module Grammar(
 	grammarFromStr,
 ) where
 
-import Grammar.Internals
-import GrammarTypes
+--import Grammar.Internals
+import Grammar.Types
 import Types
 import GrammarFormat
 import GroupedGrammar

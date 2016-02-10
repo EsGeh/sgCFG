@@ -2,7 +2,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module GroupedGrammar.Parse where
 
-import GrammarTypes
+import Grammar.Types
 --import GroupedGrammar.Internals
 import Parse.Token
 import Types

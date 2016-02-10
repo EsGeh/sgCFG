@@ -1,6 +1,6 @@
 module Config.Types where
 
-import GrammarTypes
+import Grammar.Types
 import GrammarFormat
 import GroupedGrammar.Transformations
 import Types

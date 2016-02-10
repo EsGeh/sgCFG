@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 --{-# LANGUAGE FlexibleContexts #-}
 module GroupedGrammar(
-	module GroupedGrammar.Internals,
+	module GroupedGrammar.Types,
 	module GroupedGrammar.Transformations,
 	--groupedGrammarSub,
 	--spanningForest,
@@ -13,9 +13,9 @@ module GroupedGrammar(
 ) where
 
 import GroupedGrammar.Transformations
-import GroupedGrammar.Internals
+import GroupedGrammar.Types
 import GroupedGrammar.Parse
-import GrammarTypes
+import Grammar.Types
 import GrammarFormat
 import Parse.ParseFormatFromGrammarFormat (parseFormatFromGrammarFormat)
 import Parse.Token
@@ -60,14 +60,6 @@ groupedGrammarFromStr descr =
 
 groupedGrammarFromTokens =
 	mapLeft show . P.parse parseGroupedGrammar ""
-
-instance
-	ToTextAs GrammarFormat (GroupedProduction_ProdAndSymbolsTagged ProductionTag [SymbolTag]) where
-		toTextAs format p =
-			unwords $
-				[ toTextAs format $ tag p
-				, toTextAs format $ value p
-				]
 
 instance FromTextAs GrammarFormat GroupedGrammar where
 	fromTextAs grammarFormat str =

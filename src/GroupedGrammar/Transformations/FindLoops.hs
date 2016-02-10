@@ -1,9 +1,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module GroupedGrammar.Transformations.FindLoops where
 
-import GroupedGrammar.Internals
+import GroupedGrammar.Types
 import GroupedGrammar.Transformations.Types
-import GrammarTypes
+import Grammar.Types
 import Utils.Graph
 import qualified Data.Tree as Tree
 

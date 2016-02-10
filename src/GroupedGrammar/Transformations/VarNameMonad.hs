@@ -5,8 +5,8 @@ module GroupedGrammar.Transformations.VarNameMonad(
 	runVarNameMonad
 ) where
 
-import GroupedGrammar.Internals
-import GrammarTypes
+import GroupedGrammar.Types
+import Grammar.Types
 
 import qualified Data.Set as S
 import Data.Char
@@ -28,6 +28,7 @@ data VarNameState = VarNameState {
 	fromVarNameState :: Int
 }
 -}
+
 data VarNameState = VarNameState {
 	fromVarNameState :: S.Set Var
 }

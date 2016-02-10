@@ -97,9 +97,17 @@ def =
 			},
 		grammarFormat_or =
 			[ "\n  |"
-			, "\n|", "|\n", "|"],
+			, "\n |"
+			, "\n|"
+			, "|\n"
+			, "|"
+			],
 		--grammarFormat_or = ["\n|", "|\n", "|"],
-		grammarFormat_arrow = ["->\n  ", "->"],
+		grammarFormat_arrow =
+			[ "->\n  "
+			, "->\n "
+			, "->"
+			],
 		--grammarFormat_arrow = ["->"],
 		grammarFormat_whitespaces = [" "],
 		grammarFormat_prodSep = ["\n"],

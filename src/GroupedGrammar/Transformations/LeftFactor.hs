@@ -2,9 +2,9 @@
 module GroupedGrammar.Transformations.LeftFactor where
 
 import GroupedGrammar.Transformations.VarNameMonad
-import GroupedGrammar.Internals
+import GroupedGrammar.Types
 import GroupedGrammar.Transformations.Types
-import GrammarTypes
+import Grammar.Types
 import Utils.Graph
 
 import qualified Data.Map as M

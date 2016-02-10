@@ -3,8 +3,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module GroupedGrammar.Transformations.Types where
 
-import GroupedGrammar.Internals
-import GrammarTypes
+import GroupedGrammar.Types
+import Grammar.Types
 import GrammarFormat
 import Types
 import Utils.Graph
@@ -16,6 +16,7 @@ import Data.List
 
 data Transformation
 	= Annotate AnnotateInfo
+	| ElimLeftRekur
 	| LeftFactor
 	| SubGrammar SubGrammarInfo
 	| UnusedRules
@@ -36,10 +37,6 @@ ggSeparateProdTags_mapToGrammar f g =
 	g{ ggSeparateProdTags_grammar = f (ggSeparateProdTags_grammar g) }
 ggSeparateProdTags_mapToRuleAnnotations f g =
 	g{ ggSeparateProdTags_ruleAnnotations = f (ggSeparateProdTags_ruleAnnotations g) }
-
-data SymbolTag
-	= ProductionRef Var
-	deriving( Eq, Ord )
 
 type GrammarGraph symbolTag =
 	Graph Symbol (GroupedProductionTagged symbolTag)
@@ -110,19 +107,6 @@ fromSeparateProdTags defProdTag g =
 				case M.lookup (prod_left prod) annotations of
 					Nothing -> tagged defProdTag prod
 					Just ann -> tagged ann prod
-
-instance ToTextAs GrammarFormat SymbolTag where
-	toTextAs _ _ = "!"
-
-instance ToTextAs GrammarFormat ProductionTag where
-	toTextAs format x =
-		maybe "" id $
-			(prodTag_firstSet x) >>= \set -> return $
-				concat $
-					[ "FIRST = { "
-					, intercalate ", " $ fmap (toTextAs format) $ S.toList $ set
-					, "}"
-					]
 
 deriving instance
 	(Eq productionTag, Eq symbolTag)

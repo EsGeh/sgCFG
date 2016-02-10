@@ -11,11 +11,12 @@ module GroupedGrammar.Transformations(
 ) where
 
 import GroupedGrammar.Transformations.FirstSet
+import GroupedGrammar.Transformations.ElimLeftRekur
 import GroupedGrammar.Transformations.LeftFactor
 import GroupedGrammar.Transformations.FindLoops
 import GroupedGrammar.Transformations.Types
-import GroupedGrammar.Internals
-import GrammarTypes
+import GroupedGrammar.Types
+import Grammar.Types
 import Utils.Graph
 
 import qualified Data.Tree as Tree
@@ -72,8 +73,9 @@ applyTransformation t g' =
 													(prodTag_mapToFirstSet $ const $ Just set) $
 													oldAnn
 			LeftFactor ->
-				--error "not yet implemented!"
 				flip (transformationContext prodTag_empty) g' leftFactor
+			ElimLeftRekur ->
+				flip (transformationContext prodTag_empty) g' elimLeftRekur
 			SubGrammar var ->
 				flip (transformationContext prodTag_empty) g' $ \g prodTags graph ->
 					do

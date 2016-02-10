@@ -6,7 +6,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveTraversable #-}
-module GrammarTypes where
+module Grammar.Types where
 
 import Types
 import GrammarFormat
@@ -16,6 +16,9 @@ import GrammarFormat
 --import Data.Functor
 import qualified Data.Foldable as Fold
 
+
+---------------------------------------------------
+-- very general types:
 
 data GrammarGen prod =
 	Grammar {
@@ -39,6 +42,12 @@ prod_mapToLeft =
 	fromMonadicLens prod_mapToLeftM
 prod_mapToRight =
 	fromMonadicLens prod_mapToRightM
+
+---------------------------------------------------
+-- more concrete types:
+
+type Grammar = GrammarGen Production
+type Production = ProductionGen Var [Symbol]
 
 type Symbol = Either Terminal Var
 
@@ -72,45 +81,9 @@ tagged_mapToTag =
 tagged_mapToValue =
 	fromMonadicLens tagged_mapToValueM
 
-{-
--- |serialize to Nothing or a String
-class ToTextMaybe a where
-	toTextMaybe :: a -> Maybe String
--}
-
 ---------------------------------------------------
 -- instances
 ---------------------------------------------------
-
-{-
-instance
-	(Pretty left, Pretty right) =>
-	Pretty (ProductionGen left right) where
-		pretty p =
-			concat $
-			[ pretty $ prod_left p
-			, " -> "
-			, pretty $ prod_right p
-			]
--}
-
--- Pretty
-instance Pretty Var where
-	pretty v = var_name v
-
-instance Pretty Terminal where
-	pretty x = "\"" ++ terminal_name x ++ "\""
-
-instance Pretty Symbol where
-	pretty x =
-		either pretty pretty x
-
--- PrettyAs
--- TODO:
-{-
-instance PrettyAs GrammarFormat Var where
-	prettyAs format x
--}
 
 -- ToTextAs
 instance ToTextAs GrammarFormat Var where
@@ -125,6 +98,19 @@ instance ToTextAs GrammarFormat Symbol where
 	toTextAs format =
 			either (toTextAs format) (toTextAs format)
 
+instance ToTextAs GrammarFormat Production where
+	toTextAs format p =
+		concat $
+		[ toTextAs format $ prod_left p
+		, " "
+		, prodSign
+		, " "
+		, unwords $ map (toTextAs format) $ prod_right p
+		]
+		where
+			prodSign = head $ grammarFormat_arrow format
+
+-- if you can serialize a prod, you can serialize the grammar:
 instance
 	(ToTextAs GrammarFormat prod) =>
 		ToTextAs GrammarFormat (GrammarGen prod) where
@@ -132,3 +118,31 @@ instance
 		unlines $
 		map (toTextAs format) $
 		fromGrammar groupedGrammar
+
+-- ToText
+instance ToText Grammar where
+	toText g =
+		unlines $
+		map pretty $
+		fromGrammar g
+
+-- Pretty
+instance Pretty Var where
+	pretty v = var_name v
+
+instance Pretty Terminal where
+	pretty x = "\"" ++ terminal_name x ++ "\""
+
+instance Pretty Symbol where
+	pretty x =
+		either pretty pretty x
+
+instance Pretty Production where
+	pretty p =
+		(concat $
+			[ pretty $ prod_left p
+			, " -> "
+			]
+		)
+		++
+		(unwords $ map pretty $ prod_right p)
