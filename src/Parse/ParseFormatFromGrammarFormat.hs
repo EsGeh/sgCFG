@@ -44,24 +44,6 @@ orderByPrefix strings = sortBy cmp strings
 				EQ -> cmp xs ys
 				other -> other
 
-{-
-orderByPrefix =
-	sortBy $ \a b ->
-		if commonPrefix a b == a
-			then GT
-			else
-				if commonPrefix a b == b
-					then LT
-					else GT
--}
-
-{-
-commonPrefix a b =
-	case (a,b) of
-		(x:xs, y:ys) | x == y -> x:(commonPrefix xs ys)
-		_ -> ""
--}
-
 parseLineComment f =
 	(choice $ map (P.try . P.string) $ grammarFormat_lineComment f)
 	>>
@@ -72,18 +54,33 @@ parseSymbol :: GrammarFormat -> Parsec String () ()
 parseSymbol f stop =
 	case (grammarFormat_var f, grammarFormat_terminal f) of
 		(Just surroundVar, mSurroundTerm) ->
-			(try $ liftM Right $ parseSurround surroundVar)
+			( -- try to parse a variable:
+				try $ liftM Right $ parseSurround surroundVar
+			)
 			<|>
-			(liftM Left $
-				maybe (parseUntilStop $ (try $ parseSurround surroundVar >> return ()) <|> stop)
+			( -- parse as terminal:
+				liftM Left $
+				maybe
+					(
+						-- read until a variable, or 'stop' is found:
+						parseUntilStop $
+						(try $ parseSurround surroundVar >> return ()) <|> stop
+					)
 					parseSurround
 					mSurroundTerm
 			)
+			where
 		(Nothing, Just surroundTerm) ->
-			(try $ liftM Left $ parseSurround surroundTerm)
+			( -- try to parse as a terminal:
+				try $ liftM Left $ parseSurround surroundTerm
+			)
 			<|>
-			(liftM Right $ parseUntilStop stop)
-		--(Nothing, Nothing) ->
+			( -- parse as a variable:
+				liftM Right $ parseUntilStop stop
+			)
+		(Nothing, Nothing) ->
+			-- default: parse as terminal
+			liftM Left $ parseUntilStop stop
 
 parseSurround surround =
 	let (prefix, suffix) = fromSurroundBy surround
@@ -91,4 +88,4 @@ parseSurround surround =
 		P.string prefix *> (P.anyChar `P.manyTill` (P.lookAhead $ P.try $ P.string suffix)) <* P.string suffix
 
 parseUntilStop stop =
-	anyChar `manyTill` (lookAhead stop)
+	P.anyChar `manyTill` (P.lookAhead stop)

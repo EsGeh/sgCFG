@@ -99,9 +99,9 @@ instance ToTextAs GrammarFormat Production where
 	toTextAs format p =
 		concat $
 		[ toTextAs format $ prod_left p
-		, " "
+		--, " "
 		, prodSign
-		, " "
+		--, " "
 		, unwords $ map (toTextAs format) $ prod_right p
 		]
 		where
@@ -136,7 +136,8 @@ instance Pretty Symbol where
 
 instance Pretty Production where
 	pretty p =
-		(concat $
+		(
+			concat $
 			[ pretty $ prod_left p
 			, " -> "
 			]

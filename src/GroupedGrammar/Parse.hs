@@ -81,7 +81,7 @@ specificToken tokT =
 tok ::
 	(Monad m) =>
 	String -> (Token -> Bool) -> ParsecT [Token] u m Token
-tok errMsg cond =
+tok _ cond =
 	tokenPrim show updatePos (\t -> if cond t then Just t else Nothing)
 	where
 		updatePos :: SourcePos -> Token -> [Token] -> SourcePos

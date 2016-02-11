@@ -24,7 +24,7 @@ configFromArgs args =
 				f = foldl (\f g -> f >=> g) return options -- :: [PartialCfg -> Maybe PartialCfg] -> PartialCfg -> Maybe PartialCfg
 			in
 				f $ defConfig
-		(_,_, errMessages) -> Nothing --errMessages
+		(_,_,_) -> Nothing --errMessages
 
 usageString :: String -> String
 usageString progName =
