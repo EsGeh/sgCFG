@@ -54,25 +54,30 @@ usageString progName =
 
 optDescrList :: [Opt.OptDescr (Config -> Maybe Config)]
 optDescrList =
-	[ Opt.Option ['h'] ["help"] (Opt.NoArg (\cfg -> return $ cfgMapToOutput (OutputHelp:) cfg)) "print help"
-	, Opt.Option ['i'] ["input-format", "if"] (Opt.ReqArg inputF "FORMAT") "input format (append \"--change-input-format\" to modify)"
-	, Opt.Option [] ["change-input-format", "cif"] (Opt.ReqArg changeInputFormat "CHANGE_FORMAT") "change input format"
-	, Opt.Option [] ["output-options"]
-		(Opt.NoArg $ return . cfgMapToOutput (OutputOptions:))
-		"output options"
-	, Opt.Option [] ["output-tokens"]
-		(Opt.NoArg outputTokens)
-		"output the input stream as stream of tokens"
-	, Opt.Option ['o'] ["output"]
-		(Opt.ReqArg outputF "FORMAT")
-		"output format (append \"--change-output-format\" to modify)"
-	, Opt.Option ['g'] ["output-grouped"]
-		(Opt.ReqArg outputGrouped "FORMAT")
-		"output format (append \"--change-output-format\" to modify)"
-	, Opt.Option [] ["change-output-format", "cof"] (Opt.ReqArg changeOutputFormat "CHANGE_FORMAT") "change output format"
-	, Opt.Option [] ["tree"] (Opt.NoArg outputTree) "output grammar as tree"
-	, Opt.Option ['t'] ["transformation"] (Opt.ReqArg transformation "GRAMMAR_TRANSFORMATION") "apply a transformation on grammar"
+	[ defineOption ['h'] ["help"] "print help" $
+		Opt.NoArg $ \cfg -> return $ cfgMapToOutput (OutputHelp:) cfg
+	, defineOption ['i'] ["input-format", "if"] "input format (append \"--change-input-format\" to modify)" $
+		Opt.ReqArg inputF "FORMAT"
+	, defineOption [] ["change-input-format", "cif"] "change input format" $
+		Opt.ReqArg changeInputFormat "CHANGE_FORMAT"
+	, defineOption [] ["output-options"] "output options" $
+		Opt.NoArg $ return . cfgMapToOutput (OutputOptions:)
+	, defineOption [] ["output-tokens"] "output the input stream as stream of tokens" $
+		Opt.NoArg outputTokens
+	, defineOption ['o'] ["output"] "output format (append \"--change-output-format\" to modify)" $
+		Opt.ReqArg outputF "FORMAT"
+	, defineOption ['g'] ["output-grouped"] "output format (append \"--change-output-format\" to modify)" $
+		Opt.ReqArg outputGrouped "FORMAT"
+	, defineOption [] ["change-output-format", "cof"] "change output format" $
+		Opt.ReqArg changeOutputFormat "CHANGE_FORMAT"
+	, defineOption [] ["tree"] "output grammar as tree" $
+		Opt.NoArg outputTree
+	, defineOption ['t'] ["transformation"] "apply a transformation on grammar" $
+		Opt.ReqArg transformation "GRAMMAR_TRANSFORMATION"
 	]
+	where
+		defineOption shortOpt longOpt descr transformation =
+			Opt.Option shortOpt longOpt transformation descr
 
 outputTree =
 	cfgMapToOutputM $ mapToHeadMaybe $ \spec ->
@@ -131,7 +136,7 @@ transformation arg cfg =
 							where
 								changeTransformations str list = do
 									transformation <- either (const Nothing) Just $ fromPretty str
-									return $ (transformation:list)
+									return $ (list++[transformation])
 						_ -> Nothing
 
 changeOutputFormat :: String -> Config -> Maybe Config

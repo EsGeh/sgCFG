@@ -5,6 +5,7 @@ module GroupedGrammar.Transformations.Types where
 
 import GroupedGrammar.Types
 import Grammar.Types
+import Types
 --import GrammarFormat
 --import Types
 import Utils.Graph
@@ -17,7 +18,7 @@ import qualified Data.Map as M
 data Transformation
 	= Annotate AnnotateInfo
 	| ElimLeftRekur
-	| LeftFactor
+	| LeftFactor VarScheme
 	| SubGrammar SubGrammarInfo
 	| UnusedRules
 	deriving (Show)
@@ -27,6 +28,18 @@ data AnnotateInfo
 	= AnnotateWithLoops
 	| AnnotateWithFirstSet
 	deriving (Show)
+
+data VarScheme
+	= Const String -- constName + number
+	| FromVar -- originalName + number
+	deriving Show
+
+instance FromPretty VarScheme where
+	fromPretty str =
+		case str of
+			"%v%n" -> Right $ FromVar
+			"" -> Left $ "fromPretty error reading VarScheme"
+			str -> Right $ Const str
 
 data GroupedGrammar_SeparateProdTags productionTag symbolTag =
 	GroupedGrammar_SeparateProdTags {

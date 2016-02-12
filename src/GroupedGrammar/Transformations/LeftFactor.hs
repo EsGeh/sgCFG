@@ -6,6 +6,7 @@ import GroupedGrammar.Types
 import GroupedGrammar.Transformations.Types
 import Grammar.Types
 import Utils.Graph
+import Utils
 
 import qualified Data.Map as M
 import Data.List
@@ -15,56 +16,62 @@ import Control.Monad
 
 
 leftFactor ::
+	VarScheme ->
 	GroupedGrammarTagged [SymbolTag] -> M.Map Var prodTag -> Graph Symbol (GroupedProductionTagged [SymbolTag]) -> Maybe (GroupedGrammar_SeparateProdTags prodTag [SymbolTag])
-leftFactor grammar _ _ =
+leftFactor scheme grammar _ _ =
 	return $
-	GroupedGrammar_SeparateProdTags {
-		ggSeparateProdTags_grammar = newGrammar grammar,
-		ggSeparateProdTags_ruleAnnotations = M.empty
-	}
+	ggSeparateProdTags_mapToGrammar calcGrammar $
+	GroupedGrammar_SeparateProdTags grammar M.empty
 	where
-		newGrammar :: forall tag . GroupedGrammarTagged [tag] -> GroupedGrammarTagged [tag]
-		newGrammar grammar =
-			Grammar $
-			map (prod_mapToRight $ map $ map $ tagged []) $
-			f $
-			map (prod_mapToRight $ map $ map $ value) $
-			fromGrammar grammar
-
+		calcGrammar :: forall tag . GroupedGrammarTagged [tag] -> GroupedGrammarTagged [tag]
+		calcGrammar =
+			grammar_mapToProductions $
+			withUntaggedProductions $
+			(
+				flip (runVarNameMonad scheme) (fromTaggedGrammar grammar)
+				.
+				leftFactoringAlgorithm 
+			)
 			where
-				f :: [ProductionGen Var [[Symbol]]] -> [ProductionGen Var [[Symbol]]]
-				f =
-					flip runVarNameMonad (fmap (prod_mapToRight $ map $ map $ value) grammar)
+				withUntaggedProductions f =
+					map (prod_mapToRight $ map $ map $ tagged [])
 					.
-					g 
+					f
+					.
+					map (prod_mapToRight $ map $ map $ value)
+				leftFactoringAlgorithm :: [ProductionGen Var [[Symbol]]] -> VarNameMonad [ProductionGen Var [[Symbol]]]
+				leftFactoringAlgorithm productions =
+					processAll splitProduction productions
 
-				g :: [ProductionGen Var [[Symbol]]] -> VarNameMonad [ProductionGen Var [[Symbol]]]
-				g productions =
-					case productions of
-						[] ->  return []
-						(prod:otherProds) ->
-							do
-								newProds <- splitProduction prod
-								case newProds of
-									[_] -> -- the production hadn't been needed to split:
-											liftM ([prod] ++) $ g otherProds
-									_ ->
-										g $ newProds ++ otherProds
+processAll ::
+	forall a m . Monad m =>
+	(a -> m [a]) -> [a] -> m [a]
+processAll f l =
+	case l of
+		[] -> return []
+		(x:xs) ->
+			do
+				newElems <- f x :: m [a]
+				case newElems of
+					[_] ->
+							liftM ([x] ++) $ processAll f xs
+					_ ->
+						--liftM (newElems ++) $ (processAll f $ xs)
+						processAll f $ newElems ++ xs
 
 splitProduction :: GroupedProduction -> VarNameMonad [GroupedProduction]
 splitProduction prod =
-	let
-		right = prod_right prod :: [[Symbol]]
-	in
 		liftM (joinProductions . join) $
 		mapM calcNewProd $
-		groupByPrefix right
+		(map $ mapSnd $ map $ \x -> if x == [] then [Left epsilon] else x) $
+		groupByPrefix $
+		(prod_right prod :: [[Symbol]])
 		where
 			calcNewProd :: ([Symbol], [[Symbol]]) -> VarNameMonad [ProductionGen Var [[Symbol]]]
 			calcNewProd rules =
-				--trace ("calcNewProd with" ++ show rules) $
 				case rules of
-					(pref, [[]]) ->
+					(pref, rests) | (all $ all (==Left epsilon)) rests ->
+					-- (pref, [[]]) ->
 						return $ return $ Production (prod_left prod) [pref]
 					(pref, rests) ->
 						do
@@ -85,7 +92,7 @@ joinProductions =
 				[] -> error "joinProductions error"
 				hd:_ -> Production (prod_left hd) $ concat $ map prod_right productions
 
--- if two or more lists have the same prefix, they are returned as a group.
+-- if two or more lists have the same prefix (/= epsilon), they are returned as a group.
 {- e.g.
 	groupByPrefix ["abcdef", "abc", "abcHURZ", "xyz"] == [("xyz",[]), ("abc",["HURZ", "", "def"]) ]
 -}

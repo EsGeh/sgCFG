@@ -90,8 +90,8 @@ instance FromPretty Transformation where
 				return $ Annotate $ AnnotateWithLoops
 			("annotate", "first") ->
 				return $ Annotate $ AnnotateWithFirstSet
-			("leftFactor", []) ->
-				return $ LeftFactor
+			("leftFactor", varScheme) ->
+				fmap LeftFactor $ fromPretty varScheme
 			("subGrammar", var) ->
 				return $ SubGrammar $ Var var
 			("unused", []) ->

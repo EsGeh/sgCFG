@@ -23,6 +23,13 @@ data GrammarGen prod =
 	}
 	deriving (Eq, Ord, Show, Functor, Fold.Foldable, Traversable)
 
+grammar_mapToProductionsM f g =
+	do
+		new <- f $ fromGrammar g
+		return $ Grammar $ new
+grammar_mapToProductions =
+	fromMonadicLens grammar_mapToProductionsM
+
 data ProductionGen left right
 	= Production {
 		prod_left :: left,

@@ -34,13 +34,14 @@ toProdAndSymbolsTagged defTag =
 	fmap $ tagged defTag
 
 applyTransformation ::
-	Transformation -> GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag]-> Maybe (GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag])
+	Transformation ->
+	GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag]-> Maybe (GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag])
 applyTransformation t g' =
 		case t of
 			Annotate info ->
 				case info of
 					AnnotateWithLoops -> 
-						flip (transformationContext prodTag_empty) g' $ \g prodTags graph ->
+						flip (applyTransformationImpl prodTag_empty) g' $ \g prodTags graph ->
 							do
 								startSym <- liftM prod_left $ listToMaybe $ fromGrammar g
 								newGrammar <- findLoops startSym graph
@@ -72,12 +73,13 @@ applyTransformation t g' =
 													Just $
 													(prodTag_mapToFirstSet $ const $ Just set) $
 													oldAnn
-			LeftFactor ->
-				flip (transformationContext prodTag_empty) g' leftFactor
+			LeftFactor varScheme ->
+				flip (applyTransformationImpl prodTag_empty) g' (leftFactor varScheme)
 			ElimLeftRekur ->
-				flip (transformationContext prodTag_empty) g' elimLeftRekur
+				flip (applyTransformationImpl prodTag_empty) g' elimLeftRekur
 			SubGrammar var ->
-				flip (transformationContext prodTag_empty) g' $ \g prodTags graph ->
+				flip (applyTransformationImpl prodTag_empty) g' $
+				\g prodTags graph ->
 					do
 						subGrammar <- groupedGrammarSub [var] graph
 						return $
@@ -86,7 +88,8 @@ applyTransformation t g' =
 								ggSeparateProdTags_ruleAnnotations = prodTags
 							}
 			UnusedRules ->
-				flip (transformationContext prodTag_empty) g' $ \g prodTags graph ->
+				flip (applyTransformationImpl prodTag_empty) g' $
+				\g prodTags graph ->
 					let
 						used =
 							maybe (Grammar []) id $
@@ -113,12 +116,15 @@ groupedGrammarSub vars graph =
 	) $
 	spanningForest (map Right vars) graph
 
-transformationContext ::
+type TransformationImplType prodTag symbolTag m =
+	GroupedGrammarTagged symbolTag -> M.Map Var prodTag -> Graph Symbol (GroupedProductionTagged symbolTag) -> m (GroupedGrammar_SeparateProdTags prodTag symbolTag)
+
+applyTransformationImpl ::
 	Monad m => 
 	prodTag ->
-	(GroupedGrammarTagged symbolTag -> M.Map Var prodTag -> Graph Symbol (GroupedProductionTagged symbolTag) -> m (GroupedGrammar_SeparateProdTags prodTag symbolTag))
+	TransformationImplType prodTag symbolTag m
 	-> GroupedGrammar_ProdAndSymbolsTagged prodTag symbolTag -> m (GroupedGrammar_ProdAndSymbolsTagged prodTag symbolTag)
-transformationContext defProdTag f grammarWithAnn =
+applyTransformationImpl defProdTag f grammarWithAnn =
 	let
 		separateProdTags = toSeparateProdTags grammarWithAnn
 		g = ggSeparateProdTags_grammar separateProdTags
@@ -139,6 +145,14 @@ transformationContext defProdTag f grammarWithAnn =
 					ggSeparateProdTags_ruleAnnotations = ggSeparateProdTags_ruleAnnotations res
 				}
 
+{- |for every prod P = (A -> [[..]..[..]]) in G1
+	find similar prod P' in G2
+	add P to the result, concat tags from P with P'
+-}
+intersectTaggedGrammars ::
+	GroupedGrammarTagged [SymbolTag]
+	-> GroupedGrammarTagged [SymbolTag]
+	-> GroupedGrammarTagged [SymbolTag]
 intersectTaggedGrammars g1 g2 =
 	Grammar $
 	let
