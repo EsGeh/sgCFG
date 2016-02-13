@@ -92,7 +92,7 @@ instance FromPretty Transformation where
 				return $ Annotate $ AnnotateWithFirstSet
 			("leftFactor", varScheme) ->
 				fmap LeftFactor $ fromPretty varScheme
-			("elimLeftRec", varScheme) ->
+			("elimLeftRec_dragon", varScheme) ->
 				fmap ElimLeftRecur $ fromPretty varScheme
 			("subGrammar", var) ->
 				return $ SubGrammar $ Var var

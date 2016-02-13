@@ -37,9 +37,15 @@ usageString progName =
 	  , "  param can be one of: left, right, var, terminal, or, arrow, lineComment"
 		, "GRAMMAR_TRANSFORMATION: can be one of:"
 		, "  annotate=<val> where <val> one of loops, first"
-		, "  leftFactor"
+		, "  leftFactor=NAMING_SCHEME"
+		, "  elimLeftRec_dragon=NAMING_SCHEME"
 		, "  subGrammar"
 		, "  unused"
+		, "NAMING_SCHEME can be any string <x>, or \"%v%n\""
+		, "  algorithms which introduce new variables name them <prefix><suffix>."
+		, "  * if NAMING_SCHEME == %v%n: the <prefix> is chosen on the left hand side of the rule"
+		, "  * else: <prefix> = NAMING_SCHEME"
+		, "  The <suffix> is an number increasing to avoid name clashes"
 	  ]
 	]
 	where
