@@ -3,45 +3,17 @@ module GroupedGrammar.Transformations.LeftFactor where
 
 import GroupedGrammar.Transformations.VarNameMonad
 import GroupedGrammar.Types
-import GroupedGrammar.Transformations.Types
+import GroupedGrammar.Transformations.Utils
 import Grammar.Types
-import Utils.Graph
 import Utils
 
-import qualified Data.Map as M
 import Data.List
 import Control.Monad
 
 --import Debug.Trace
 
-
-leftFactor ::
-	VarScheme ->
-	GroupedGrammarTagged [SymbolTag] -> M.Map Var prodTag -> Graph Symbol (GroupedProductionTagged [SymbolTag]) -> Maybe (GroupedGrammar_SeparateProdTags prodTag [SymbolTag])
-leftFactor scheme grammar _ _ =
-	return $
-	ggSeparateProdTags_mapToGrammar calcGrammar $
-	GroupedGrammar_SeparateProdTags grammar M.empty
-	where
-		calcGrammar :: forall tag . GroupedGrammarTagged [tag] -> GroupedGrammarTagged [tag]
-		calcGrammar =
-			grammar_mapToProductions $
-			withUntaggedProductions $
-			(
-				flip (runVarNameMonad scheme) (fromTaggedGrammar grammar)
-				.
-				leftFactoringAlgorithm 
-			)
-			where
-				withUntaggedProductions f =
-					map (prod_mapToRight $ map $ map $ tagged [])
-					.
-					f
-					.
-					map (prod_mapToRight $ map $ map $ value)
-				leftFactoringAlgorithm :: [ProductionGen Var [[Symbol]]] -> VarNameMonad [ProductionGen Var [[Symbol]]]
-				leftFactoringAlgorithm productions =
-					processAll splitProduction productions
+leftFactor varScheme =
+	applyAlgorithmUsingProductions varScheme $ processAll leftFactoringStep
 
 processAll ::
 	forall a m . Monad m =>
@@ -59,8 +31,8 @@ processAll f l =
 						--liftM (newElems ++) $ (processAll f $ xs)
 						processAll f $ newElems ++ xs
 
-splitProduction :: GroupedProduction -> VarNameMonad [GroupedProduction]
-splitProduction prod =
+leftFactoringStep :: GroupedProduction -> VarNameMonad [GroupedProduction]
+leftFactoringStep prod =
 		liftM (joinProductions . join) $
 		mapM calcNewProd $
 		(map $ mapSnd $ map $ \x -> if x == [] then [Left epsilon] else x) $
@@ -79,7 +51,6 @@ splitProduction prod =
 							return $
 								Production (prod_left prod) [pref ++ [Right newVar]]
 								: [Production newVar rests]
-
 var = Right . Var
 
 joinProductions ::

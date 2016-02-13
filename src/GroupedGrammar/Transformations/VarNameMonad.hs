@@ -75,10 +75,5 @@ runVarNameMonad scheme m g =
 			map (
 				\prod -> [prod_left prod] ++ join (map Either.rights (prod_right prod))
 			)
-			{-
-			map $ \prod ->
-				prod_left prod
-			-}
-				--[prod_left prod] ++ join (map (filter Either.isRight) (prod_right prod))
 
 spanEnd cond = (\(a,b) -> (reverse b, reverse a)) . span cond . reverse

@@ -11,7 +11,7 @@ module GroupedGrammar.Transformations(
 ) where
 
 import GroupedGrammar.Transformations.FirstSet
-import GroupedGrammar.Transformations.ElimLeftRekur
+import GroupedGrammar.Transformations.ElimLeftRecur
 import GroupedGrammar.Transformations.LeftFactor
 import GroupedGrammar.Transformations.FindLoops
 import GroupedGrammar.Transformations.Types
@@ -75,8 +75,8 @@ applyTransformation t g' =
 													oldAnn
 			LeftFactor varScheme ->
 				flip (applyTransformationImpl prodTag_empty) g' (leftFactor varScheme)
-			ElimLeftRekur ->
-				flip (applyTransformationImpl prodTag_empty) g' elimLeftRekur
+			ElimLeftRecur varScheme ->
+				flip (applyTransformationImpl prodTag_empty) g' $ elimLeftRecur varScheme
 			SubGrammar var ->
 				flip (applyTransformationImpl prodTag_empty) g' $
 				\g prodTags graph ->

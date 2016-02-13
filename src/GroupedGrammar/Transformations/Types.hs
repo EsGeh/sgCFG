@@ -17,7 +17,7 @@ import qualified Data.Map as M
 
 data Transformation
 	= Annotate AnnotateInfo
-	| ElimLeftRekur
+	| ElimLeftRecur VarScheme
 	| LeftFactor VarScheme
 	| SubGrammar SubGrammarInfo
 	| UnusedRules
