@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Config.Types where
 
 import Grammar.Types
@@ -85,20 +86,56 @@ data FormatParam
 
 instance FromPretty Transformation where
 	fromPretty str =
-		case mapSnd (drop 1) $ span (/='=') str of
-			("annotate", "loops") ->
+		case parseTransformationDescr str of
+			("annotate", ["loops"]) ->
 				return $ Annotate $ AnnotateWithLoops
-			("annotate", "first") ->
+			("annotate", ["first"]) ->
 				return $ Annotate $ AnnotateWithFirstSet
-			("leftFactor", varScheme) ->
+			("leftFactor", [varScheme]) ->
 				fmap LeftFactor $ fromPretty varScheme
-			("elimLeftRec_dragon", varScheme) ->
+			("elimLeftRec_dragon", [varScheme]) ->
 				fmap ElimLeftRecur $ fromPretty varScheme
-			("subGrammar", var) ->
+			("elimLeftRec_noEpsilon", [varScheme]) ->
+				fmap ElimLeftRecurNoEpsilon $ fromPretty varScheme
+			("breakRules", [maxLength, varScheme]) ->
+				fmap (uncurry BreakRules) $ liftM2 (,) (return $ read maxLength) (fromPretty varScheme)
+			("subGrammar", [var]) ->
 				return $ SubGrammar $ Var var
 			("unused", []) ->
 				return $ UnusedRules
-			_ -> Left $ "fromPretty error for Transformation"
+			x -> Left $
+				concat $
+				[ "fromPretty error for Transformation, got "
+				, show x
+				]
+
+parseTransformationDescr :: String -> (String, [String])
+parseTransformationDescr =
+	mapSnd (splitBy ',' . init . drop 1) . span (/='(')
+
+splitBy :: forall a .
+	Eq a => a -> [a] -> [[a]]
+splitBy c str = 
+	fst $
+	splitBy' [] str
+	where
+		splitBy' :: [[a]] -> [a] -> ([[a]], [[a]])
+		splitBy' processed remaining =
+			case remaining of
+				(x:xs) | x == c ->
+					splitBy'
+						(processed ++ [[]])
+						xs
+				(x:xs) ->
+					splitBy'
+						(
+							case processed of
+								[] -> [[x]]
+								_ -> init processed ++ [last processed ++ [x]]
+						)
+						xs
+				_ ->
+					(processed, [])
 
 instance FromPretty DefaultFormat where
 	fromPretty str =

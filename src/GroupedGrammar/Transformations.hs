@@ -14,6 +14,7 @@ import GroupedGrammar.Transformations.FirstSet
 import GroupedGrammar.Transformations.ElimLeftRecur
 import GroupedGrammar.Transformations.LeftFactor
 import GroupedGrammar.Transformations.FindLoops
+import GroupedGrammar.Transformations.BreakRules
 import GroupedGrammar.Transformations.Types
 import GroupedGrammar.Types
 import Grammar.Types
@@ -77,6 +78,10 @@ applyTransformation t g' =
 				flip (applyTransformationImpl prodTag_empty) g' (leftFactor varScheme)
 			ElimLeftRecur varScheme ->
 				flip (applyTransformationImpl prodTag_empty) g' $ elimLeftRecur varScheme
+			ElimLeftRecurNoEpsilon varScheme ->
+				flip (applyTransformationImpl prodTag_empty) g' $ elimLeftRecurNoEpsilon varScheme
+			BreakRules maxLength varScheme ->
+				flip (applyTransformationImpl prodTag_empty) g' $ breakRules varScheme maxLength
 			SubGrammar var ->
 				flip (applyTransformationImpl prodTag_empty) g' $
 				\g prodTags graph ->

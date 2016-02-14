@@ -13,12 +13,12 @@ import Control.Monad
 --import Debug.Trace
 
 leftFactor varScheme =
-	applyAlgorithmUsingProductions varScheme $ processAll leftFactoringStep
+	applyAlgorithmUsingProductions varScheme $ processAll_LeftFactoring leftFactoringStep
 
-processAll ::
+processAll_LeftFactoring ::
 	forall a m . Monad m =>
 	(a -> m [a]) -> [a] -> m [a]
-processAll f l =
+processAll_LeftFactoring f l =
 	case l of
 		[] -> return []
 		(x:xs) ->
@@ -26,10 +26,10 @@ processAll f l =
 				newElems <- f x :: m [a]
 				case newElems of
 					[_] ->
-							liftM ([x] ++) $ processAll f xs
+							liftM ([x] ++) $ processAll_LeftFactoring f xs
 					_ ->
-						--liftM (newElems ++) $ (processAll f $ xs)
-						processAll f $ newElems ++ xs
+						--liftM (newElems ++) $ (processAll_LeftFactoring f $ xs)
+						processAll_LeftFactoring f $ newElems ++ xs
 
 leftFactoringStep :: GroupedProduction -> VarNameMonad [GroupedProduction]
 leftFactoringStep prod =

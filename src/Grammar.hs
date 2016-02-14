@@ -35,12 +35,3 @@ grammarFromStr descr =
 
 grammarFromTokens =
 	liftM grammarFromGroupedGrammar . groupedGrammarFromTokens
-
-grammarFromGroupedGrammar ast =
-	Grammar $
-	concat $
-	map productionsFromGroupedProd $
-	fromGrammar ast
-
-productionsFromGroupedProd :: GroupedProduction -> [Production]
-productionsFromGroupedProd x = Production <$> [prod_left x] <*> prod_right x

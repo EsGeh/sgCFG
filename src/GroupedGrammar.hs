@@ -5,6 +5,7 @@
 module GroupedGrammar(
 	module GroupedGrammar.Types,
 	module GroupedGrammar.Transformations,
+	module GroupedGrammar.Conversions,
 	--groupedGrammarSub,
 	--spanningForest,
 	groupedGrammarFromTokens,
@@ -14,6 +15,7 @@ module GroupedGrammar(
 
 import GroupedGrammar.Transformations
 import GroupedGrammar.Types
+import GroupedGrammar.Conversions
 import GroupedGrammar.Parse
 import Grammar.Types
 import GrammarFormat

@@ -13,29 +13,17 @@ import Control.Monad
 
 elimLeftRecur varScheme =
 	applyAlgorithmUsingProductions varScheme $
-		processAllReftRec $ elimLeftRecurStep
+		processAll $ elimLeftRecurStep $ elimImmediateLeftRecursion_Dragon 
 
-processAllReftRec ::
-	forall a m . Monad m =>
-	([a] ->  a -> m [a]) -> [a] -> m [a]
-processAllReftRec f l =
-	liftM fst $
-	processAllReftRec' f ([], l)
-	where
-		processAllReftRec' :: ([a] -> a -> m [a]) -> ([a],[a]) -> m ([a],[a])
-		processAllReftRec' f partition@(processed, remaining) =
-			case remaining of
-				[] -> return $ partition
-				(x:xs) ->
-					do
-						newElems <- f processed x :: m [a]
-						processAllReftRec' f (processed ++ newElems, xs)
-
+elimLeftRecurNoEpsilon varScheme =
+	applyAlgorithmUsingProductions varScheme $
+		processAll $ elimLeftRecurStep $ elimImmediateLeftRecursion_noEpsilon
 
 elimLeftRecurStep ::
-	[GroupedProduction] -> GroupedProduction -> VarNameMonad [GroupedProduction]
-elimLeftRecurStep processed currentProd =
-	elimImmediateLeftRecursion_Dragon $
+	(GroupedProduction -> VarNameMonad [GroupedProduction])
+	-> [GroupedProduction] -> GroupedProduction -> VarNameMonad [GroupedProduction]
+elimLeftRecurStep immediateStep processed currentProd =
+	immediateStep $
 	elimIndirectLeftRecursion processed currentProd
 
 elimIndirectLeftRecursion ::
@@ -64,9 +52,23 @@ elimIndirectLeftRecursion processed currentProd =
 					_ ->
 						[right]
 
+
 elimImmediateLeftRecursion_Dragon ::
 	GroupedProduction -> VarNameMonad [GroupedProduction]
-elimImmediateLeftRecursion_Dragon prod =
+elimImmediateLeftRecursion_Dragon =
+	elimImmediateLeftRecursion $
+		splitProduction
+
+elimImmediateLeftRecursion_noEpsilon ::
+	GroupedProduction -> VarNameMonad [GroupedProduction]
+elimImmediateLeftRecursion_noEpsilon =
+	elimImmediateLeftRecursion $
+		splitProductionNoEpsilon
+
+elimImmediateLeftRecursion ::
+	(Var -> [[Symbol]] -> [[Symbol]] -> Var -> [GroupedProduction])
+	-> GroupedProduction -> VarNameMonad [GroupedProduction]
+elimImmediateLeftRecursion splitProduction' prod =
 	let
 		left = prod_left prod
 		rightSides = prod_right prod :: [[Symbol]]
@@ -77,7 +79,7 @@ elimImmediateLeftRecursion_Dragon prod =
 				partition -> -- (recursiveProductions, otherProductions)
 					liftM
 						(
-							uncurry splitProduction $
+							uncurry (splitProduction' left) $
 							mapFst (map $ drop 1) $
 							partition
 						) $
@@ -87,10 +89,23 @@ elimImmediateLeftRecursion_Dragon prod =
 				case rightProductionSide of
 					(Right var : _) | var == prod_left prod -> True
 					_ -> False
-			splitProduction :: [[Symbol]] -> [[Symbol]] -> Var -> [GroupedProduction]
-			splitProduction recursiveProductionRests otherProductions newVarName =
-				[ Production (prod_left prod) $
-					(++) <$> otherProductions <*> [[Right newVarName]]
-				, Production newVarName $
-					((++) <$> recursiveProductionRests <*> [[Right newVarName]]) ++ [[Left epsilon]]
-				]
+
+splitProduction :: Var -> [[Symbol]] -> [[Symbol]] -> Var -> [GroupedProduction]
+splitProduction left recursiveProductionRests otherProductions newVarName =
+	[ Production left $
+		(++) <$> otherProductions <*> [[Right newVarName]]
+	, Production newVarName $
+		((++) <$> recursiveProductionRests <*> [[Right newVarName]])
+		++
+		[[Left epsilon]]
+	]
+
+splitProductionNoEpsilon :: Var -> [[Symbol]] -> [[Symbol]] -> Var -> [GroupedProduction]
+splitProductionNoEpsilon left recursiveProductionRests otherProductions newVarName =
+	[ Production left $
+		otherProductions
+		++
+		((++) <$> otherProductions <*> [[Right newVarName]])
+	, Production newVarName $
+		((++) <$> recursiveProductionRests <*> [[Right newVarName]])
+	]

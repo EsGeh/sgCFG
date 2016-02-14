@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 module GroupedGrammar.Transformations.Utils where
 
 import GroupedGrammar.Transformations.VarNameMonad
@@ -6,6 +7,8 @@ import GroupedGrammar.Transformations.Types
 import GroupedGrammar.Types
 import Grammar.Types
 import Utils.Graph
+
+import Control.Monad
 
 import qualified Data.Map as M
 
@@ -35,3 +38,23 @@ applyAlgorithmUsingProductions scheme algorithm grammar _ _ =
 					f
 					.
 					map (prod_mapToRight $ map $ map $ value)
+
+processAll f =
+	processAllExt $
+	\processed currentElem -> liftM (,[]) $ f processed currentElem
+
+processAllExt ::
+	forall a m . Monad m =>
+	([a] ->  a -> m ([a],[a])) -> [a] -> m [a]
+processAllExt f l =
+	liftM fst $
+	processAllExt' f ([], l)
+	where
+		processAllExt' :: ([a] -> a -> m ([a], [a])) -> ([a],[a]) -> m ([a],[a])
+		processAllExt' f partition@(processed, remaining) =
+			case remaining of
+				[] -> return $ partition
+				(x:xs) ->
+					do
+						(newElemsFinished, newElemsToBeProcessedAgain) <- f processed x
+						processAllExt' f (processed ++ newElemsFinished, newElemsToBeProcessedAgain ++ xs)
