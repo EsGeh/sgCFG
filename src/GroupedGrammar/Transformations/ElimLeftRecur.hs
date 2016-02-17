@@ -12,17 +12,17 @@ import Control.Monad
 
 
 elimLeftRecur varScheme =
-	applyAlgorithmUsingProductions varScheme $
-		processAll $ elimLeftRecurStep $ elimImmediateLeftRecursion_Dragon 
+	applyAlgorithmUsingProductionsM varScheme $
+		processAllM $ elimLeftRecurStep $ elimImmediateLeftRecursion_Dragon 
 
 elimLeftRecurNoEpsilon varScheme =
-	applyAlgorithmUsingProductions varScheme $
-		processAll $ elimLeftRecurStep $ elimImmediateLeftRecursion_noEpsilon
+	applyAlgorithmUsingProductionsM varScheme $
+		processAllM $ elimLeftRecurStep $ elimImmediateLeftRecursion_noEpsilon
 
 elimLeftRecurStep ::
 	(GroupedProduction -> VarNameMonad [GroupedProduction])
-	-> [GroupedProduction] -> GroupedProduction -> VarNameMonad [GroupedProduction]
-elimLeftRecurStep immediateStep processed currentProd =
+	-> ([GroupedProduction],[GroupedProduction]) -> GroupedProduction -> VarNameMonad [GroupedProduction]
+elimLeftRecurStep immediateStep (processed,_) currentProd =
 	immediateStep $
 	elimIndirectLeftRecursion processed currentProd
 

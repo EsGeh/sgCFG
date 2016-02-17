@@ -11,11 +11,11 @@ import Control.Monad
 
 
 breakRules varScheme maxLength =
-	applyAlgorithmUsingProductions varScheme $
-	asWithNormalProductions $ 
-		processAllExt $ breakRulesStep maxLength
+	applyAlgorithmUsingProductionsM varScheme $
+	asWithNormalProductionsM $ 
+		processAllExtM $ breakRulesStep maxLength
 
-breakRulesStep :: Int -> [Production] -> Production -> VarNameMonad ([Production], [Production])
+breakRulesStep :: Int -> (ProcessedAndRemaining Production) -> Production -> VarNameMonad ([Production], [Production])
 breakRulesStep maxLength _ currentProd =
 	let
 		breakedRule = breakRuleIfTooLong maxLength currentProd

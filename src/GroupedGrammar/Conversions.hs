@@ -5,6 +5,7 @@ import GroupedGrammar.Types
 import Grammar.Types
 
 import Control.Monad
+import Control.Monad.Identity
 
 
 -- conversion: grouped <-> normal
@@ -18,11 +19,16 @@ grammarFromGroupedGrammar ast =
 productionsFromGroupedProd :: GroupedProduction -> [Production]
 productionsFromGroupedProd x = Production <$> [prod_left x] <*> prod_right x
 
-asWithNormalProductions ::
+asWithNormalProductions f =
+	runIdentity
+	.
+	asWithNormalProductionsM (return . f)
+
+asWithNormalProductionsM ::
 	Monad m =>
 	([Production] -> m [Production])
 	-> [GroupedProduction] -> m [GroupedProduction]
-asWithNormalProductions f =
+asWithNormalProductionsM f =
 	(return . toGroupedProductions)
 	<=<
 	(f . join . map productionsFromGroupedProd)

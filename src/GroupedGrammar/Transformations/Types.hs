@@ -21,6 +21,7 @@ data Transformation
 	| ElimLeftRecurNoEpsilon VarScheme
 	| LeftFactor VarScheme
 	| BreakRules Int VarScheme
+	| Unfold UnfoldParams
 	| SubGrammar SubGrammarInfo
 	| UnusedRules
 	deriving (Show)
@@ -35,6 +36,18 @@ data VarScheme
 	= Const String -- constName + number
 	| FromVar -- originalName + number
 	deriving Show
+
+data UnfoldParams = UnfoldParams {
+	unfoldParams_repeatUntilNotChanging :: Bool,
+	unfoldParams_varCondDescr :: VariableConditionDescr
+}
+	deriving (Show)
+
+data VariableConditionDescr = VariableConditionDescr {
+	varCondDescr_negate :: Bool,
+	varCondDescr_regex :: String
+}
+	deriving (Show)
 
 instance FromPretty VarScheme where
 	fromPretty str =

@@ -13,7 +13,7 @@ import Control.Monad
 --import Debug.Trace
 
 leftFactor varScheme =
-	applyAlgorithmUsingProductions varScheme $ processAll_LeftFactoring leftFactoringStep
+	applyAlgorithmUsingProductionsM varScheme $ processAll_LeftFactoring leftFactoringStep
 
 processAll_LeftFactoring ::
 	forall a m . Monad m =>

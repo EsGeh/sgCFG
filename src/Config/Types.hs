@@ -8,6 +8,7 @@ import Types
 import Utils
 
 import Control.Monad.Identity
+import Control.Monad.Except
 
 
 data Config
@@ -99,6 +100,18 @@ instance FromPretty Transformation where
 				fmap ElimLeftRecurNoEpsilon $ fromPretty varScheme
 			("breakRules", [maxLength, varScheme]) ->
 				fmap (uncurry BreakRules) $ liftM2 (,) (return $ read maxLength) (fromPretty varScheme)
+			("unfold", [repeat,negate,regex]) ->
+				do
+					doRepeat <- isEqualOrEmpty "repeat" repeat
+					doNegate <- isEqualOrEmpty "not" negate
+					return $ Unfold $ UnfoldParams {
+						unfoldParams_repeatUntilNotChanging = doRepeat,
+						unfoldParams_varCondDescr =
+							VariableConditionDescr {
+								varCondDescr_negate = doNegate,
+								varCondDescr_regex = regex
+							}
+					}
 			("subGrammar", [var]) ->
 				return $ SubGrammar $ Var var
 			("unused", []) ->
@@ -109,6 +122,18 @@ instance FromPretty Transformation where
 				, show x
 				]
 
+isEqualOrEmpty pattern str =
+	case str of
+		str' | str'==pattern -> return $ True
+		"" -> return $ False
+		_ -> fail $
+			concat $
+			[ "isEqualOrEmpty failed with "
+			, pattern
+			, " and "
+			, str
+			]
+
 parseTransformationDescr :: String -> (String, [String])
 parseTransformationDescr =
 	mapSnd (splitBy ',' . init . drop 1) . span (/='(')
@@ -117,7 +142,7 @@ splitBy :: forall a .
 	Eq a => a -> [a] -> [[a]]
 splitBy c str = 
 	fst $
-	splitBy' [] str
+	splitBy' [[]] str
 	where
 		splitBy' :: [[a]] -> [a] -> ([[a]], [[a]])
 		splitBy' processed remaining =
@@ -161,6 +186,19 @@ mapToHeadMaybe f list =
 	case list of
 		[] -> Nothing
 		(x:xs) -> do
+			return $ (f x):xs
+
+mapToHeadOrError errMsg f list =
+	case list of
+		[] -> throwError $ errMsg
+		(x:xs) -> do
+			return $ (f x):xs
+
+{-
+mapToHeadMaybe f list =
+	case list of
+		[] -> Nothing
+		(x:xs) -> do
 			new <- f x
 			return $ new:xs
 
@@ -170,5 +208,6 @@ mapToHeadM f list =
 		(x:xs) -> do
 			new <- f x
 			return $ new:xs
+-}
 
-mapToHead f = runIdentity . mapToHeadM (return . f)
+--mapToHead f = runIdentity . mapToHeadM (return . f)

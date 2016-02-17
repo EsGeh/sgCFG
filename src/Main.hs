@@ -7,19 +7,27 @@ import Types
 import ConfigFromArgs
 import Parse.ParseFormatFromGrammarFormat (parseFormatFromGrammarFormat)
 
-import System.Environment (getArgs)
+import qualified System.Environment as Env (getArgs, getProgName)
 import Control.Monad
+import Control.Monad.Except
 import Data.List
 
-progName = "sgCFG"
+--progName = "sgCFG"
 
 
 main :: IO ()
 main = do
+	mConfig <- liftM configFromArgs Env.getArgs
+	config <- case runExcept mConfig of
+		Left err -> fail $ err
+		--Nothing -> fail "error parsing arguments"
+		Right config -> return config
+	{-
 	mConfig <- liftM configFromArgs getArgs
 	config <- case mConfig of
 		Nothing -> fail "error parsing arguments"
 		Just config -> return config
+	-}
 	str <- getContents
 	-- parse input:
 	let
@@ -36,7 +44,8 @@ main = do
 		outputAction cmd =
 			case cmd of
 				OutputHelp ->
-					putStrLn $ usageString progName
+					putStrLn =<< liftM usageString Env.getProgName
+					--putStrLn $ usageString progName
 				OutputTokenStream ->
 					putStrLn . tokStreamToText =<< failOrVal "error parsing token stream" errOrTokens
 				OutputOptions ->
@@ -65,6 +74,9 @@ main = do
 applyTransformations :: [Transformation] -> GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag] -> Maybe (GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag])
 applyTransformations t =
 	(foldl (>=>) return $ map applyTransformation t)
+
+f (Just a) = Left a
+f Nothing = Right ()
 
 tokStreamToText s =
 	intercalate " " $

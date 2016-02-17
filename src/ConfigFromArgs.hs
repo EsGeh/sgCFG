@@ -1,4 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts #-}
 module ConfigFromArgs(
 	module ConfigFromArgs,
 	module Config.Types
@@ -12,24 +14,30 @@ import Utils (mapSnd)
 
 import qualified System.Console.GetOpt as Opt
 import Control.Monad
+import Control.Monad.Except
 --import Text.Read
 
 --import Control.Applicative
 
-configFromArgs :: [String] -> Maybe Config
+test = 7
+
+configFromArgs :: MonadError String m => [String] -> m Config
 configFromArgs args =
 	case Opt.getOpt Opt.RequireOrder optDescrList args of
 		(options, _, []) ->
 			let
-				f = foldl (\f g -> f >=> g) return options -- :: [PartialCfg -> Maybe PartialCfg] -> PartialCfg -> Maybe PartialCfg
+				f = foldl (>=>) return options
 			in
-				f $ defConfig
-		(_,_,_) -> Nothing --errMessages
+				-- maybe (throwError "error parsing options") return $
+					f $ defConfig
+		(_,_,errMessages) ->
+			throwError $ "option format error: " ++ unlines errMessages
+			-- Nothing --errMessages
 
 usageString :: String -> String
 usageString progName =
 	unwords $
-	[ Opt.usageInfo header optDescrList
+	[ Opt.usageInfo header (optDescrList :: [Opt.OptDescr (Config -> Either String Config)])
 	, unlines $
 	  [ "where"
 	  , "FORMAT: one of default, bnf, bnfe"
@@ -60,7 +68,7 @@ usageString progName =
 			, "if \"-o grouped\" is in the list, -t can be appended to apply transformations"
 			]
 
-optDescrList :: [Opt.OptDescr (Config -> Maybe Config)]
+optDescrList :: MonadError String m => [Opt.OptDescr (Config -> m Config)]
 optDescrList =
 	[ defineOption ['h'] ["help"] "print help" $
 		Opt.NoArg $ \cfg -> return $ cfgMapToOutput (OutputHelp:) cfg
@@ -87,40 +95,52 @@ optDescrList =
 		defineOption shortOpt longOpt descr transformation =
 			Opt.Option shortOpt longOpt transformation descr
 
+outputTree :: MonadError String m => Config -> m Config
 outputTree =
-	cfgMapToOutputM $ mapToHeadMaybe $ \spec ->
+	cfgMapToOutputM $
+	mapToHeadOrError' "mapToHeadError" $
+	\spec ->
 		case spec of
 			OutputGroupedGrammar info ->
 				return $ OutputGroupedGrammar $ info{ outputGrammar_asTree = True }
-			_ -> Nothing
+			_ -> --Nothing
+		 		throwError $ "bla"
 
-inputF :: String -> Config -> Maybe Config
+mapToHeadOrError' errMsg f list =
+	case list of
+		[] -> throwError $ errMsg
+		(x:xs) -> do
+			new <- f x
+			return $ new:xs
+
+
+inputF :: MonadError String m => String -> Config -> m Config
 inputF arg cfg =
 	do
-		format <- liftM defaultFormat (either (const Nothing) Just $ fromPretty arg)
+		format <- liftM defaultFormat (either (throwError) return $ fromPretty arg)
 		return $ cfg{ cfg_inputFormat = FormatState format [] }
 
-outputTokens :: Config -> Maybe Config
+outputTokens :: MonadError String m => Config -> m Config
 outputTokens cfg =
 	return $ cfgMapToOutput ((OutputTokenStream):) cfg
 
-outputF :: String -> Config -> Maybe Config
+outputF :: MonadError String m => String -> Config -> m Config
 outputF arg cfg =
 	do
-		format <- either (const Nothing) Just $ fromPretty arg
+		format <- either throwError return $ fromPretty arg
 		return $
 			cfgMapToOutput ((OutputGrammar $ defOutputGrammarInfo format):) cfg
 
-outputGrouped :: String -> Config -> Maybe Config
+outputGrouped :: MonadError String m => String -> Config -> m Config
 outputGrouped arg cfg =
 	do
-		format <- either (const Nothing) Just $ fromPretty arg
+		format <- either throwError return $ fromPretty arg
 		return $
 			cfgMapToOutput ((OutputGroupedGrammar $ defOutputGrammarInfo format):) cfg
 
-changeInputFormat :: String -> Config -> Maybe Config
+changeInputFormat :: MonadError String m => String -> Config -> m Config
 changeInputFormat arg cfg = do
-	(key, val) <- either (const Nothing) Just $ parseKeyValue arg
+	(key, val) <- either throwError return $ parseKeyValue arg
 	cfgMapToInputFormatM (applyFormatChange key val) cfg
 
 parseKeyValue str =
@@ -129,13 +149,15 @@ parseKeyValue str =
 			key <- fromPretty keyStr
 			return $ (key, val)
 
+transformation ::
+	forall m .
+	MonadError String m => String -> Config -> m Config
 transformation arg cfg =
-	do
-		cfgMapToOutputM (changeF arg) cfg
+	cfgMapToOutputM (changeF arg) cfg
 	where
-			changeF :: String -> [OutputSpec] -> Maybe [OutputSpec]
+			changeF :: String -> [OutputSpec] -> m [OutputSpec]
 			changeF str outputCommands =
-				flip mapToHeadMaybe outputCommands $ \spec ->
+				flip (mapToHeadOrError' "mapToHead error") outputCommands $ \spec ->
 					case spec of
 						OutputGroupedGrammar info -> 
 							return . OutputGroupedGrammar
@@ -143,19 +165,24 @@ transformation arg cfg =
 							outputGrammarInfo_mapToTransformationsM (changeTransformations str) info
 							where
 								changeTransformations str list = do
-									transformation <- either (const Nothing) Just $ fromPretty str
+									transformation <- either throwError return $ fromPretty str
 									return $ (list++[transformation])
-						_ -> Nothing
+						_ ->
+							throwError $ "not defined for grouped grammars yet!"
 
-changeOutputFormat :: String -> Config -> Maybe Config
+changeOutputFormat :: forall m .
+	MonadError String m => String -> Config -> m Config
 changeOutputFormat arg cfg =
 	do 
-		(key, val) <- either (const Nothing) Just $ parseKeyValue arg
+		(key, val) <- either throwError return $ parseKeyValue arg
 		cfgMapToOutputM (changeF key val) cfg
 		where
-			changeF :: FormatParam -> String -> [OutputSpec] -> Maybe [OutputSpec]
+			changeF :: FormatParam -> String -> [OutputSpec] -> m [OutputSpec]
 			changeF key val outputCommands =
-				flip mapToHeadMaybe outputCommands $ \spec ->
+				--maybe (throwError "outputCommands empty") return $
+				flip (mapToHeadOrError' "") outputCommands $
+				\spec ->
+				--(maybe (throwError "") return . flip mapToHeadMaybe outputCommands) =<< \spec ->
 					case spec of
 						OutputGrammar info  -> 
 							--return $
@@ -165,9 +192,10 @@ changeOutputFormat arg cfg =
 							--return $
 								liftM OutputGroupedGrammar $
 									outputGrammarInfo_mapToFormatM (applyFormatChange key val) info
-						_ -> Nothing
+						_ ->
+							throwError $ "bla"
 
-applyFormatChange :: FormatParam -> String -> FormatState -> Maybe FormatState
+applyFormatChange :: MonadError String m => FormatParam -> String -> FormatState -> m FormatState
 applyFormatChange param str outputInfo
 	| param `elem` [LeftSideFormatParam, RightSideFormatParam, VarFormatParam, TerminalFormatParam] =
 		let mapToField =
@@ -178,11 +206,11 @@ applyFormatChange param str outputInfo
 				TerminalFormatParam -> gFormatMapToTerminal
 				_ -> error "internal error"
 		in
-			surroundBy_fromText str
+			(maybe (throwError "bla") return $ surroundBy_fromText str)
 			>>=
 			return .
 			(\surroundByInfo -> changeF $
-				\_ -> mapToField $ const $ Just surroundByInfo
+				\_ -> mapToField $ const $ return surroundByInfo
 			)
 	| otherwise =
 		let mapToField =

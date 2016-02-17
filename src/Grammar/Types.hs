@@ -12,6 +12,7 @@ import Types
 import GrammarFormat
 
 import qualified Data.Foldable as Fold
+import qualified Data.Either as Either
 
 
 ---------------------------------------------------
@@ -54,6 +55,9 @@ type Grammar = GrammarGen Production
 type Production = ProductionGen Var [Symbol]
 
 type Symbol = Either Terminal Var
+
+isVar = Either.isRight
+isTerminal = Either.isLeft
 
 epsilon = Terminal ""
 

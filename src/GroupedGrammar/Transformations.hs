@@ -4,6 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module GroupedGrammar.Transformations(
 	Transformation(..), AnnotateInfo(..),
+	UnfoldParams(..), VariableConditionDescr(..),
 	SymbolTag(..),
 	toProdAndSymbolsTagged, toTaggedGrammar,
 	graphFromGroupedGrammar,
@@ -15,6 +16,8 @@ import GroupedGrammar.Transformations.ElimLeftRecur
 import GroupedGrammar.Transformations.LeftFactor
 import GroupedGrammar.Transformations.FindLoops
 import GroupedGrammar.Transformations.BreakRules
+import GroupedGrammar.Transformations.Unfold
+
 import GroupedGrammar.Transformations.Types
 import GroupedGrammar.Types
 import Grammar.Types
@@ -82,6 +85,8 @@ applyTransformation t g' =
 				flip (applyTransformationImpl prodTag_empty) g' $ elimLeftRecurNoEpsilon varScheme
 			BreakRules maxLength varScheme ->
 				flip (applyTransformationImpl prodTag_empty) g' $ breakRules varScheme maxLength
+			Unfold params ->
+				flip (applyTransformationImpl prodTag_empty) g' $ unfold params
 			SubGrammar var ->
 				flip (applyTransformationImpl prodTag_empty) g' $
 				\g prodTags graph ->

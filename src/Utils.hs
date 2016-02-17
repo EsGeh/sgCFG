@@ -3,6 +3,7 @@ module Utils where
 
 import qualified Data.List as List
 
+
 unlines = List.intercalate "\n"
 
 mapFst f (a, b) = (f a, b)
@@ -37,8 +38,26 @@ concLefts l =
 					(x:xs) -> mapLeft (const $ []) x : concLefts xs
 				)
 
+replaceAllByCond :: (a -> Bool) -> [a] -> [a] -> [a]
+replaceAllByCond cond strToInsert l =
+	case l of
+		(x:xs) | cond x -> strToInsert ++ replaceAllByCond cond strToInsert xs
+		(x:xs) -> x: replaceAllByCond cond strToInsert xs
+		_ -> []
+
+replaceAll_byIndex :: Int -> [a] -> [a] -> [a]
+replaceAll_byIndex index insertThis l =
+		case splitAt index l of
+			(prec,_:rest) -> prec ++ insertThis ++ rest
+			_ -> l
+
 firstTimeNotChanging :: Eq a => a -> [a] -> a
 firstTimeNotChanging def [] = def
 firstTimeNotChanging _ [a] = a
 firstTimeNotChanging _ (a:b:_) | a == b = a
 firstTimeNotChanging def (_:b:bs) = firstTimeNotChanging def $ b:bs
+
+repeatTillNotChanging :: Eq a => (a -> a) -> a -> a
+repeatTillNotChanging f x
+	| (f x == x) = x
+	| otherwise = repeatTillNotChanging f (f x)
