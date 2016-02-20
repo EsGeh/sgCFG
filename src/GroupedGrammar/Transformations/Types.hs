@@ -10,6 +10,7 @@ import Types
 --import Types
 import Utils.Graph
 
+import Text.Regex.TDFA
 import qualified Data.Map as M
 --import qualified Data.Set as S
 --import Data.List
@@ -19,12 +20,24 @@ data Transformation
 	= Annotate AnnotateInfo
 	| ElimLeftRecur VarScheme
 	| ElimLeftRecurNoEpsilon VarScheme
+	| ElimLeftRecur_Full VarCondition VarScheme
+	| ElimLeftRecurNoEpsilon_Full VarCondition VarScheme
 	| LeftFactor VarScheme
 	| BreakRules Int VarScheme
-	| Unfold UnfoldParams
+	| Unfold VarCondition
+	| InsertProductions InsertProductionsParams
+	| DeleteProductions VarCondition
 	| SubGrammar SubGrammarInfo
 	| UnusedRules
 	deriving (Show)
+
+{-
+data SelectCondition
+	= SelectByLeft VarCondition
+	-- | SelectByRight RightCondition
+	| SelectReachable
+	| SelectNonReachable
+-}
 
 type SubGrammarInfo = Var
 data AnnotateInfo
@@ -32,22 +45,56 @@ data AnnotateInfo
 	| AnnotateWithFirstSet
 	deriving (Show)
 
+{- |algorithms introducing new variables may take a parameter of this type
+-}
 data VarScheme
 	= Const String -- constName + number
 	| FromVar -- originalName + number
 	deriving Show
 
+{-
 data UnfoldParams = UnfoldParams {
 	unfoldParams_repeatUntilNotChanging :: Bool,
-	unfoldParams_varCondDescr :: VariableConditionDescr
+	unfoldParams_varCondDescr :: VarCondition
+}
+	deriving (Show)
+-}
+
+data VarCondition = VarCondition {
+	varCond_negate :: Bool,
+	varCond_regex :: String
 }
 	deriving (Show)
 
-data VariableConditionDescr = VariableConditionDescr {
-	varCondDescr_negate :: Bool,
-	varCondDescr_regex :: String
+data InsertProductionsParams = InsertProductionsParams {
+	insertProdsParams_productions :: [GroupedProduction],
+	insertProdsParams_position :: GrammarPosition
 }
 	deriving (Show)
+
+data GrammarPosition
+	= GrammarPosBeginning
+	| GrammarPosEnding
+	deriving (Show)
+
+varCondFromDescr :: VarCondition -> (Var -> Bool)
+varCondFromDescr descr =
+	let
+		negate = varCond_negate descr
+		regex = varCond_regex descr
+	in
+		(if negate then not else id)
+		.
+		(=~regex)
+		.
+		var_name
+
+{-
+prodCondFromVarCondDescr :: VarCondition -> (ProductionGen Var right -> Bool)
+prodCondFromVarCondDescr descr =
+	varCondFromDescr descr
+	. prod_left
+-}
 
 instance FromPretty VarScheme where
 	fromPretty str =

@@ -3,11 +3,13 @@ module Parse.ParseFormatFromGrammarFormat where
 
 import GrammarFormat
 import Parse.Format
+import Utils
 
 import Text.Parsec as P hiding(many, (<|>))
 import Control.Monad
 import Control.Applicative
-import Data.List
+
+import qualified Data.List as List
 
 parseFormatFromGrammarFormat grammarFormat =
 	ParseFormat {
@@ -15,11 +17,11 @@ parseFormatFromGrammarFormat grammarFormat =
 			parseSymbol grammarFormat,
 		parseFormat_or =
 			map (P.try . P.string) $
-			orderByPrefix $
+			List.sortBy (flip lexic) $
 			grammarFormat_or grammarFormat,
 		parseFormat_prodSign =
 			map (P.try . P.string) $
-			orderByPrefix $
+			List.sortBy (flip lexic) $
 			grammarFormat_arrow grammarFormat,
 		parseFormat_whitespaces =
 			map (P.try . P.string) (grammarFormat_whitespaces grammarFormat)
@@ -28,21 +30,6 @@ parseFormatFromGrammarFormat grammarFormat =
 			[parseLineComment grammarFormat],
 		parseFormat_prodSep = map (P.try . P.string) $ grammarFormat_prodSep grammarFormat
 	}
-
-{-
-	if string a is a prefix of string b, then b will come before a
-	ex.:
-	orderByPrefix ["a", "ab", "cde"] == ["ab", "a", "cde"]
--}
-orderByPrefix strings = sortBy cmp strings
-	where
-		cmp [] [] = EQ
-		cmp [] (_:_) = GT
-		cmp (_:_) [] = LT
-		cmp (x:xs) (y:ys) =
-			case compare x y of
-				EQ -> cmp xs ys
-				other -> other
 
 parseLineComment f =
 	(choice $ map (P.try . P.string) $ grammarFormat_lineComment f)
@@ -55,7 +42,7 @@ parseSymbol f stop =
 	case (grammarFormat_var f, grammarFormat_terminal f) of
 		(Just surroundVar, mSurroundTerm) ->
 			( -- try to parse a variable:
-				try $ liftM Right $ parseSurround surroundVar
+				try $ fmap Right $ parseSurround surroundVar
 			)
 			<|>
 			( -- parse as terminal:

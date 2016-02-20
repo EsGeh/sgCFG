@@ -9,6 +9,7 @@ import Utils
 
 import qualified Data.Map as M
 import qualified Data.Set as S
+import Data.Maybe
 
 
 annotateWithFirstSets ::
@@ -37,7 +38,7 @@ firstSetsStep g =
 						(\prod ->
 							let
 								var = prod_left prod
-								oldFirstSet = maybe (error "updateAnn: error looking up old first set") id $ M.lookup var ruleAnnotations
+								oldFirstSet = fromMaybe (error "updateAnn: error looking up old first set") $ M.lookup var ruleAnnotations
 							in
 								(var, calcNewFirst (flip M.lookup ruleAnnotations) prod oldFirstSet)
 						)
@@ -57,12 +58,12 @@ firstSetsStep g =
 										((Right var):xs) ->
 											let
 												directFirst =
-													maybe (
+													fromMaybe (
 														S.singleton $
 														Terminal $
 														pretty var
 														--"FIRST(" ++ pretty var ++ ")"
-													) id $
+													) $
 													lookup var
 											in
 												if not $ epsilon `S.member` directFirst

@@ -13,7 +13,9 @@ import Control.Monad
 --import Debug.Trace
 
 leftFactor varScheme =
-	applyAlgorithmUsingProductionsM varScheme $ processAll_LeftFactoring leftFactoringStep
+	applyAlgorithmUsingProductionsM varScheme $
+	processAll_LeftFactoring leftFactoringStep
+
 
 processAll_LeftFactoring ::
 	forall a m . Monad m =>
@@ -26,16 +28,18 @@ processAll_LeftFactoring f l =
 				newElems <- f x :: m [a]
 				case newElems of
 					[_] ->
-							liftM ([x] ++) $ processAll_LeftFactoring f xs
+							fmap ([x] ++) $ processAll_LeftFactoring f xs
 					_ ->
 						--liftM (newElems ++) $ (processAll_LeftFactoring f $ xs)
 						processAll_LeftFactoring f $ newElems ++ xs
 
 leftFactoringStep :: GroupedProduction -> VarNameMonad [GroupedProduction]
 leftFactoringStep prod =
-		liftM (joinProductions . join) $
-		mapM calcNewProd $
-		(map $ mapSnd $ map $ \x -> if x == [] then [Left epsilon] else x) $
+		fmap (joinProductions . join) $
+		mapM (
+			calcNewProd
+			. (mapSnd $ map $ \x -> if null x then [Left epsilon] else x)
+		) $
 		groupByPrefix $
 		(prod_right prod :: [[Symbol]])
 		where
@@ -51,7 +55,6 @@ leftFactoringStep prod =
 							return $
 								Production (prod_left prod) [pref ++ [Right newVar]]
 								: [Production newVar rests]
-var = Right . Var
 
 joinProductions ::
 	[ProductionGen Var [[Symbol]]] -> [GroupedProduction]
@@ -61,50 +64,7 @@ joinProductions =
 		join_ productions =
 			case productions of
 				[] -> error "joinProductions error"
-				hd:_ -> Production (prod_left hd) $ concat $ map prod_right productions
-
--- if two or more lists have the same prefix (/= epsilon), they are returned as a group.
-{- e.g.
-	groupByPrefix ["abcdef", "abc", "abcHURZ", "xyz"] == [("xyz",[]), ("abc",["HURZ", "", "def"]) ]
--}
-groupByPrefix ::
-	(Eq a, Ord a) => [[a]] -> [([a], [[a]])]
-groupByPrefix l =
-	foldl conc init $
-	sortBy lexic l
-	where
-		conc :: (Eq a, Ord a) => [([a],[[a]])] -> [a] -> [([a],[[a]])] 
-		conc res l2 =
-				case res of
-					((pref, rests):xs) ->
-						case longestCommonPrefix' pref l2 of
-							(pref', _, newRest2) | pref' /= [] ->
-								(pref'
-								, newRest2
-								  : map (drop (length pref') pref ++) rests
-								)
-								: xs
-							_ -> (l2,[[]]):res
-					_ -> [(l2, [[]])]
-
-		init = []
-
-lexic a b =
-	case (a,b) of
-		(x:xs, y:ys) | x == y -> lexic xs ys
-		(x:_, y:_) -> compare x y
-		([],[]) -> EQ
-		([],_) -> LT
-		(_,[]) -> GT
-
-longestCommonPrefix' :: Eq a => [a] -> [a] -> ([a],[a],[a])
-longestCommonPrefix' l1 l2 =
-	case (l1, l2) of
-		(x:xs, y:ys) | x == y ->
-			let (pref, rest1, rest2) = longestCommonPrefix' xs ys
-			in
-				(x : pref, rest1, rest2)
-		_ -> ([], l1, l2)
+				hd:_ -> Production (prod_left hd) $ concatMap prod_right productions
 
 {-
 ignoreTags ::

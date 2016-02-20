@@ -9,11 +9,17 @@ import GroupedGrammar.Types
 import Grammar.Types
 import Utils.Graph
 
-import Control.Monad
 import Control.Monad.Identity
 
 import qualified Data.Map as M
 
+
+selectProd :: (GroupedProduction -> Bool) -> [GroupedProduction] -> Maybe ([GroupedProduction], GroupedProduction, [GroupedProduction])
+selectProd cond prods =
+	case break cond prods of
+		(preceding, prod:rest) ->
+			return $ (preceding, prod, rest)
+		_ -> Nothing
 
 applyAlgorithmUsingProductions ::
 	([ProductionGen Var [[Symbol]]] -> [ProductionGen Var [[Symbol]]])
@@ -61,62 +67,34 @@ applyAlgorithmUsingProductionsM' runMonad algorithm grammar _ _ =
 					.
 					map (prod_mapToRight $ map $ map $ value)
 
-{-
-applyAlgorithmUsingProductionsM' ::
-	VarScheme ->
-	([ProductionGen Var [[Symbol]]] -> VarNameMonad [ProductionGen Var [[Symbol]]])
-	-> GroupedGrammarTagged [SymbolTag] -> M.Map Var prodTag -> Graph Symbol (GroupedProductionTagged [SymbolTag]) -> Maybe (GroupedGrammar_SeparateProdTags prodTag [SymbolTag])
-applyAlgorithmUsingProductionsM' scheme algorithm grammar _ _ =
-	return $
-	ggSeparateProdTags_mapToGrammar calcGrammar $
-	GroupedGrammar_SeparateProdTags grammar M.empty
-	where
-		calcGrammar :: forall tag . GroupedGrammarTagged [tag] -> GroupedGrammarTagged [tag]
-		calcGrammar =
-			grammar_mapToProductions $
-			withUntaggedProductions $
-			(
-				flip (runVarNameMonad scheme) (fromTaggedGrammar grammar)
-				.
-				algorithm 
-			)
-			where
-				withUntaggedProductions f =
-					map (prod_mapToRight $ map $ map $ tagged [])
-					.
-					f
-					.
-					map (prod_mapToRight $ map $ map $ value)
--}
-
 type ProcessedAndRemaining a = ([a],[a])
 
-processAllExt ::
+processAll ::
 	(ProcessedAndRemaining a ->  a -> ProcessedAndRemaining a) -> [a] -> [a]
-processAllExt f =
+processAll f =
 	runIdentity .
-	processAllExtM (\processedAndRemaining current-> return $ f processedAndRemaining current)
+	processAllM (\processedAndRemaining current-> return $ f processedAndRemaining current)
 
-processAllM ::
+processAllOnceM ::
 	Monad m =>
 	(ProcessedAndRemaining a -> a -> m [a])
 	-> [a] -> m [a]
-processAllM f =
-	processAllExtM $
-	\processedAndRemaining currentElem -> liftM (,[]) $ f processedAndRemaining currentElem
+processAllOnceM f =
+	processAllM $
+	\processedAndRemaining currentElem -> fmap (,[]) $ f processedAndRemaining currentElem
 
-processAllExtM ::
+processAllM ::
 	forall a m . Monad m =>
 	(ProcessedAndRemaining a ->  a -> m (ProcessedAndRemaining a)) -> [a] -> m [a]
-processAllExtM f l =
-	liftM fst $
-	processAllExtM' f ([], l)
+processAllM f l =
+	fmap fst $
+	processAllM' f ([], l)
 	where
-		processAllExtM' :: (ProcessedAndRemaining a -> a -> m (ProcessedAndRemaining a)) -> ProcessedAndRemaining a -> m (ProcessedAndRemaining a)
-		processAllExtM' f partition@(processed, remaining) =
+		processAllM' :: (ProcessedAndRemaining a -> a -> m (ProcessedAndRemaining a)) -> ProcessedAndRemaining a -> m (ProcessedAndRemaining a)
+		processAllM' f partition@(processed, remaining) =
 			case remaining of
 				[] -> return $ partition
 				(x:xs) ->
 					do
 						(newElemsFinished, newElemsToBeProcessedAgain) <- f (processed,remaining) x
-						processAllExtM' f (processed ++ newElemsFinished, newElemsToBeProcessedAgain ++ xs)
+						processAllM' f (processed ++ newElemsFinished, newElemsToBeProcessedAgain ++ xs)

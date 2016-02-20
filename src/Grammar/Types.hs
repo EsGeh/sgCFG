@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeSynonymInstances #-}
@@ -136,14 +135,14 @@ instance ToText Grammar where
 
 -- Pretty
 instance Pretty Var where
-	pretty v = var_name v
+	pretty = var_name 
 
 instance Pretty Terminal where
 	pretty x = "\"" ++ terminal_name x ++ "\""
 
 instance Pretty Symbol where
-	pretty x =
-		either pretty pretty x
+	pretty =
+		either pretty pretty
 
 instance Pretty Production where
 	pretty p =

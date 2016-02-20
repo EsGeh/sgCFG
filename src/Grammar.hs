@@ -19,10 +19,6 @@ import GroupedGrammar
 import Parse.ParseFormatFromGrammarFormat (parseFormatFromGrammarFormat)
 import Utils (mapLeft)
 
---import Text.Parsec hiding (many, (<|>))
-import Control.Monad
---import Control.Applicative
-
 
 instance FromTextAs GrammarFormat Grammar where
 	fromTextAs grammarFormat str =
@@ -31,7 +27,8 @@ instance FromTextAs GrammarFormat Grammar where
 			mapLeft show $ grammarFromStr parseFormat str
 
 grammarFromStr descr =
-	liftM grammarFromGroupedGrammar . groupedGrammarFromStr descr
+	fmap grammarFromGroupedGrammar . groupedGrammarFromStr descr
 
 grammarFromTokens =
-	liftM grammarFromGroupedGrammar . groupedGrammarFromTokens
+	fmap grammarFromGroupedGrammar . groupedGrammarFromTokens
+

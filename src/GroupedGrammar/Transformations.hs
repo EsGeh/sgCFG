@@ -1,10 +1,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module GroupedGrammar.Transformations(
 	Transformation(..), AnnotateInfo(..),
-	UnfoldParams(..), VariableConditionDescr(..),
+	VarCondition(..),
+	InsertProductionsParams(..),
+	GrammarPosition(..),
 	SymbolTag(..),
 	toProdAndSymbolsTagged, toTaggedGrammar,
 	graphFromGroupedGrammar,
@@ -15,8 +16,10 @@ import GroupedGrammar.Transformations.FirstSet
 import GroupedGrammar.Transformations.ElimLeftRecur
 import GroupedGrammar.Transformations.LeftFactor
 import GroupedGrammar.Transformations.FindLoops
-import GroupedGrammar.Transformations.BreakRules
+import GroupedGrammar.Transformations.BreakProds
 import GroupedGrammar.Transformations.Unfold
+import GroupedGrammar.Transformations.AddProds
+import GroupedGrammar.Transformations.DeleteProds
 
 import GroupedGrammar.Transformations.Types
 import GroupedGrammar.Types
@@ -47,7 +50,7 @@ applyTransformation t g' =
 					AnnotateWithLoops -> 
 						flip (applyTransformationImpl prodTag_empty) g' $ \g prodTags graph ->
 							do
-								startSym <- liftM prod_left $ listToMaybe $ fromGrammar g
+								startSym <- fmap prod_left $ listToMaybe $ fromGrammar g
 								newGrammar <- findLoops startSym graph
 								return $
 									GroupedGrammar_SeparateProdTags {
@@ -72,21 +75,29 @@ applyTransformation t g' =
 											ggSeparateProdTags_mapToRuleAnnotations $
 											M.mapMaybeWithKey $
 											\var set ->
-												let oldAnn = maybe (error "rejoinWithOriginalProdTags error") id $ M.lookup var origAnn
+												let oldAnn = fromMaybe (error "rejoinWithOriginalProdTags error") $ M.lookup var origAnn
 												in
 													Just $
 													(prodTag_mapToFirstSet $ const $ Just set) $
 													oldAnn
 			LeftFactor varScheme ->
-				flip (applyTransformationImpl prodTag_empty) g' (leftFactor varScheme)
+				flip (applyTransformationImpl prodTag_empty) g' $ leftFactor varScheme
 			ElimLeftRecur varScheme ->
 				flip (applyTransformationImpl prodTag_empty) g' $ elimLeftRecur varScheme
 			ElimLeftRecurNoEpsilon varScheme ->
 				flip (applyTransformationImpl prodTag_empty) g' $ elimLeftRecurNoEpsilon varScheme
+			ElimLeftRecur_Full varCond varScheme ->
+				flip (applyTransformationImpl prodTag_empty) g' $ elimLeftRecur_full (varCondFromDescr varCond) varScheme
+			ElimLeftRecurNoEpsilon_Full varCond varScheme ->
+				flip (applyTransformationImpl prodTag_empty) g' $ elimLeftRecurNoEpsilon_full (varCondFromDescr varCond) varScheme
 			BreakRules maxLength varScheme ->
-				flip (applyTransformationImpl prodTag_empty) g' $ breakRules varScheme maxLength
-			Unfold params ->
-				flip (applyTransformationImpl prodTag_empty) g' $ unfold params
+				flip (applyTransformationImpl prodTag_empty) g' $ breakProds varScheme maxLength
+			Unfold varCondDescr ->
+				flip (applyTransformationImpl prodTag_empty) g' $ unfold $ varCondFromDescr varCondDescr
+			InsertProductions params ->
+				flip (applyTransformationImpl prodTag_empty) g' $ insertProds params
+			DeleteProductions condDescr ->
+				flip (applyTransformationImpl prodTag_empty) g' $ deleteProds $ varCondFromDescr condDescr
 			SubGrammar var ->
 				flip (applyTransformationImpl prodTag_empty) g' $
 				\g prodTags graph ->
@@ -102,9 +113,9 @@ applyTransformation t g' =
 				\g prodTags graph ->
 					let
 						used =
-							maybe (Grammar []) id $
+							fromMaybe (Grammar []) $
 							do
-								startSym <- liftM prod_left $ listToMaybe $ fromGrammar g
+								startSym <- fmap prod_left $ listToMaybe $ fromGrammar g
 								(groupedGrammarSub [startSym] graph)
 					in
 						return $
@@ -119,7 +130,7 @@ applyTransformation t g' =
 
 groupedGrammarSub :: [Var] -> GrammarGraph symbolTag -> Maybe (GroupedGrammarTagged symbolTag)
 groupedGrammarSub vars graph =
-	liftM (
+	fmap (
 		Grammar .
 		join .
 		map (Tree.flatten . fmap snd)

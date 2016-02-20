@@ -9,12 +9,11 @@ import Types
 
 import Text.Parsec hiding(many, (<|>))
 import Control.Applicative
-import Control.Monad
 import Data.List
 
 
 parseGroupedGrammar =
-	liftM Grammar $
+	fmap Grammar $
 	many $
 	do
 		(VarToken varInfo) <- specificToken VarTokenType
@@ -50,7 +49,7 @@ splitBy cond l =
 		[] -> [[]]
 		_ -> 
 			let
-				(s, rest) = span (not . cond) l
+				(s, rest) = break cond l
 			in
 				[s] ++ case rest of
 					[] -> []

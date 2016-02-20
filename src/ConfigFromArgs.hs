@@ -19,8 +19,6 @@ import Control.Monad.Except
 
 --import Control.Applicative
 
-test = 7
-
 configFromArgs :: MonadError String m => [String] -> m Config
 configFromArgs args =
 	case Opt.getOpt Opt.RequireOrder optDescrList args of
@@ -46,9 +44,14 @@ usageString progName =
 		, "GRAMMAR_TRANSFORMATION: can be one of:"
 		, "  annotate(<val>) where <val> one of loops, first"
 		, "  leftFactor(NAMING_SCHEME)"
-		, "  elimLeftRec_dragon(NAMING_SCHEME)"
+		, "  elimLeftRec(NAMING_SCHEME)"
 		, "  elimLeftRec_noEpsilon(NAMING_SCHEME)"
+		, "  elimLeftRec_full(negate,regex,NAMING_SCHEME)"
+		, "  elimLeftRec_noEpsilon_full(negate,regex,NAMING_SCHEME)"
 		, "  breakRules(maxLength,NAMING_SCHEME)"
+		, "  unfold(negate,regex)"
+		, "  insert(start|end,prodInDefaultSyntax)"
+		, "  delete(negate,regex)"
 		, "  subGrammar"
 		, "  unused"
 		, "NAMING_SCHEME can be any string <x>, or \"%v%n\""
@@ -117,12 +120,12 @@ mapToHeadOrError' errMsg f list =
 inputF :: MonadError String m => String -> Config -> m Config
 inputF arg cfg =
 	do
-		format <- liftM defaultFormat (either (throwError) return $ fromPretty arg)
+		format <- fmap defaultFormat (either throwError return $ fromPretty arg)
 		return $ cfg{ cfg_inputFormat = FormatState format [] }
 
 outputTokens :: MonadError String m => Config -> m Config
 outputTokens cfg =
-	return $ cfgMapToOutput ((OutputTokenStream):) cfg
+	return $ cfgMapToOutput (OutputTokenStream:) cfg
 
 outputF :: MonadError String m => String -> Config -> m Config
 outputF arg cfg =
@@ -152,8 +155,8 @@ parseKeyValue str =
 transformation ::
 	forall m .
 	MonadError String m => String -> Config -> m Config
-transformation arg cfg =
-	cfgMapToOutputM (changeF arg) cfg
+transformation arg =
+	cfgMapToOutputM (changeF arg)
 	where
 			changeF :: String -> [OutputSpec] -> m [OutputSpec]
 			changeF str outputCommands =
@@ -186,11 +189,11 @@ changeOutputFormat arg cfg =
 					case spec of
 						OutputGrammar info  -> 
 							--return $
-								liftM OutputGrammar $
+								fmap OutputGrammar $
 									outputGrammarInfo_mapToFormatM (applyFormatChange key val) info
 						OutputGroupedGrammar info -> 
 							--return $
-								liftM OutputGroupedGrammar $
+								fmap OutputGroupedGrammar $
 									outputGrammarInfo_mapToFormatM (applyFormatChange key val) info
 						_ ->
 							throwError $ "bla"

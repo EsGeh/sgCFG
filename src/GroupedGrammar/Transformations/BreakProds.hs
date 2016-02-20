@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-module GroupedGrammar.Transformations.BreakRules where
+module GroupedGrammar.Transformations.BreakProds where
 
 import GroupedGrammar.Transformations.VarNameMonad
 --import GroupedGrammar.Types
@@ -7,35 +7,33 @@ import GroupedGrammar.Conversions
 import GroupedGrammar.Transformations.Utils
 import Grammar.Types
 
-import Control.Monad
 
-
-breakRules varScheme maxLength =
+breakProds varScheme maxLength =
 	applyAlgorithmUsingProductionsM varScheme $
 	asWithNormalProductionsM $ 
-		processAllExtM $ breakRulesStep maxLength
+		processAllM $ breakProdsStep maxLength
 
-breakRulesStep :: Int -> (ProcessedAndRemaining Production) -> Production -> VarNameMonad ([Production], [Production])
-breakRulesStep maxLength _ currentProd =
+breakProdsStep :: Int -> (ProcessedAndRemaining Production) -> Production -> VarNameMonad ([Production], [Production])
+breakProdsStep maxLength _ currentProd =
 	let
-		breakedRule = breakRuleIfTooLong maxLength currentProd
+		breakedRule = breakProdIfTooLong maxLength currentProd
 	in
 		{- first production is ok, the others are to be
 			processed again:
 		-}
-		liftM (splitAt 1) $ breakedRule
+		fmap (splitAt 1) $ breakedRule
 
-breakRuleIfTooLong :: Int -> Production -> VarNameMonad [Production]
-breakRuleIfTooLong maxLength prod =
+breakProdIfTooLong :: Int -> Production -> VarNameMonad [Production]
+breakProdIfTooLong maxLength prod =
 	if (length $ prod_right prod) > maxLength
 	then
-		liftM (breakRule maxLength prod) $
+		fmap (breakProd maxLength prod) $
 		getSimilarVar $ prod_left prod
 	else
 		return [prod]
 
-breakRule :: Int -> Production -> Var -> [Production]
-breakRule maxLength prod newVarName =
+breakProd :: Int -> Production -> Var -> [Production]
+breakProd maxLength prod newVarName =
 	let
 		(rightSideHead, rest) = splitAt (maxLength-1) $ prod_right $ prod
 	in

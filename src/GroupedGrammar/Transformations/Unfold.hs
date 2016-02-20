@@ -1,27 +1,39 @@
 module GroupedGrammar.Transformations.Unfold where
 
 import GroupedGrammar.Transformations.Utils
-import GroupedGrammar.Transformations.Types
 import Grammar.Types
 import GroupedGrammar.Types
 import Utils
 
-import Control.Monad
-import Data.Maybe
 import Data.List
+import Data.Maybe
+import Control.Monad
 
-import Text.Regex.TDFA
 
-unfold unfoldParams =
+unfold varCond =
 	let
-		pleaseRepeatUntilNotChanging = unfoldParams_repeatUntilNotChanging unfoldParams
-		varCondDescr = unfoldParams_varCondDescr unfoldParams
+		cond = varCond . prod_left
 	in
 		applyAlgorithmUsingProductions $
+		\prods ->
+			maybe prods (
+				fromZipper
+				.
+				repeatTillNotChanging (
+					(
+						\state ->
+							fromMaybe state $
+							nextSelection cond state
+					)
+					.
+					step
+				)
+			) $
+			selectProd cond prods
+		{-
 		(if pleaseRepeatUntilNotChanging then repeatTillNotChanging else id) $
 		\prods -> 
-			fromMaybe prods $
-			liftM (
+			maybe prods (
 				\(preceding,prod,rest) ->
 					(replaceAll prod $ preceding)
 					++
@@ -29,15 +41,28 @@ unfold unfoldParams =
 					++
 					(replaceAll prod $ rest)
 			) $
-			findRuleToInsert (varCondFromDescr varCondDescr) $
+			selectProd (varCondFromDescr varCondDescr) $
 			prods
+		-}
 
-findRuleToInsert :: (GroupedProduction -> Bool) -> [GroupedProduction] -> Maybe ([GroupedProduction], GroupedProduction, [GroupedProduction])
-findRuleToInsert cond prods =
-	case break cond prods of
-		(preceding, prod:rest) ->
-			return $ (preceding, prod, rest)
-		_ -> Nothing
+fromZipper (preceding, selected, rest) =
+	preceding ++ [selected] ++ rest
+
+step :: Zipper GroupedProduction -> Zipper GroupedProduction
+step (preceding,prod,rest) =
+	(replaceAll prod $ preceding
+	,
+	prod
+	,
+	replaceAll prod $ rest)
+
+nextSelection :: (GroupedProduction -> Bool) -> Zipper GroupedProduction -> Maybe (Zipper GroupedProduction)
+nextSelection cond (lastPreceding, lastSelected, lastRest) =
+	flip fmap (selectProd cond lastRest) $
+		\(preceding, selected, rest) ->
+			(lastPreceding ++ [lastSelected] ++ preceding, selected, rest)
+
+type Zipper a = ([a], a, [a]) -- (preceding, selected, rest)
 
 replaceAll :: GroupedProduction -> [GroupedProduction] -> [GroupedProduction]
 replaceAll prod prods =
@@ -59,15 +84,3 @@ replaceAllByCond' cond inserts l =
 	case find cond l of
 		Nothing -> [l]
 		_ -> replaceAllByCond cond <$> inserts <*> [l]
-
-varCondFromDescr :: VariableConditionDescr -> (ProductionGen Var right -> Bool)
-varCondFromDescr descr =
-	let
-		negate = varCondDescr_negate descr
-		regex = varCondDescr_regex descr
-	in
-		(if negate then not else id)
-		.
-		(=~regex)
-		.
-		var_name . prod_left

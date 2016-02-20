@@ -12,8 +12,7 @@ import Control.Monad.Identity
 
 grammarFromGroupedGrammar ast =
 	Grammar $
-	concat $
-	map productionsFromGroupedProd $
+	concatMap productionsFromGroupedProd $
 	fromGrammar ast
 
 productionsFromGroupedProd :: GroupedProduction -> [Production]

@@ -3,7 +3,9 @@ module Config.Types where
 
 import Grammar.Types
 import GrammarFormat
-import GroupedGrammar.Transformations
+import GroupedGrammar
+--import GroupedGrammar.Transformations
+--import GroupedGrammar.Types
 import Types
 import Utils
 
@@ -94,24 +96,77 @@ instance FromPretty Transformation where
 				return $ Annotate $ AnnotateWithFirstSet
 			("leftFactor", [varScheme]) ->
 				fmap LeftFactor $ fromPretty varScheme
-			("elimLeftRec_dragon", [varScheme]) ->
+			("elimLeftRec", [varScheme]) ->
 				fmap ElimLeftRecur $ fromPretty varScheme
 			("elimLeftRec_noEpsilon", [varScheme]) ->
 				fmap ElimLeftRecurNoEpsilon $ fromPretty varScheme
+			("elimLeftRec_full", [negate,regex,varScheme]) ->
+				ElimLeftRecur_Full <$>
+				(
+					VarCondition <$>
+					isEqualOrEmpty "not" negate
+					<*> return regex
+				)
+				<*>
+				fromPretty varScheme
+			("elimLeftRec_noEpsilon_full", [negate,regex,varScheme]) ->
+				ElimLeftRecurNoEpsilon_Full <$>
+				(
+					VarCondition <$>
+					isEqualOrEmpty "not" negate
+					<*> return regex
+				)
+				<*>
+				fromPretty varScheme
+				--fmap ElimLeftRecur $ fromPretty varScheme
 			("breakRules", [maxLength, varScheme]) ->
 				fmap (uncurry BreakRules) $ liftM2 (,) (return $ read maxLength) (fromPretty varScheme)
-			("unfold", [repeat,negate,regex]) ->
+			("unfold", [negate,regex]) ->
 				do
-					doRepeat <- isEqualOrEmpty "repeat" repeat
 					doNegate <- isEqualOrEmpty "not" negate
+					return $ Unfold $
+						VarCondition {
+							varCond_negate = doNegate,
+							varCond_regex = regex
+						}
+					{-
 					return $ Unfold $ UnfoldParams {
 						unfoldParams_repeatUntilNotChanging = doRepeat,
 						unfoldParams_varCondDescr =
-							VariableConditionDescr {
-								varCondDescr_negate = doNegate,
-								varCondDescr_regex = regex
+							VarCondition {
+								varCond_negate = doNegate,
+								varCond_regex = regex
 							}
 					}
+					-}
+			("insert", [posStr,prodsStr]) ->
+				do
+					pos <- case posStr of
+						"start" -> return $ GrammarPosBeginning
+						"end" -> return $ GrammarPosEnding
+						_ -> throwError $
+							concat $ 
+							[ "unknown position "
+							, posStr
+							]
+					prods <-
+						fmap fromGrammar $
+						fromTextAs (defaultFormat Default) prodsStr
+					return $
+						InsertProductions $
+						InsertProductionsParams {
+							insertProdsParams_position = pos,
+							insertProdsParams_productions = prods
+						}
+			("delete", [negate,regex]) ->
+				do
+					doNegate <- isEqualOrEmpty "not" negate
+					return $
+						DeleteProductions $
+						VarCondition {
+							varCond_negate = doNegate,
+							varCond_regex = regex
+						}
 			("subGrammar", [var]) ->
 				return $ SubGrammar $ Var var
 			("unused", []) ->
@@ -193,21 +248,3 @@ mapToHeadOrError errMsg f list =
 		[] -> throwError $ errMsg
 		(x:xs) -> do
 			return $ (f x):xs
-
-{-
-mapToHeadMaybe f list =
-	case list of
-		[] -> Nothing
-		(x:xs) -> do
-			new <- f x
-			return $ new:xs
-
-mapToHeadM f list =
-	case list of
-		[] -> return []
-		(x:xs) -> do
-			new <- f x
-			return $ new:xs
--}
-
---mapToHead f = runIdentity . mapToHeadM (return . f)

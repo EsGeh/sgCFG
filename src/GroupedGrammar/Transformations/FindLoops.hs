@@ -7,6 +7,8 @@ import Grammar.Types
 import Utils.Graph
 import qualified Data.Tree as Tree
 
+import Data.Maybe
+
 
 findLoops ::
 	Var -> GrammarGraph [SymbolTag] ->
@@ -59,7 +61,7 @@ findLoopsInTree graph tree =
 						allBackEdges =
 							filter cond $ map prod_left (label:path)
 						cond var =
-							maybe False id $
+							fromMaybe False $
 							isReachable graph
 								(Right $ prod_left label)
 								(Right var)

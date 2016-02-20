@@ -1,6 +1,5 @@
 module GrammarFormat where
 
-import Control.Monad
 import Text.Read
 
 
@@ -51,7 +50,7 @@ data SurroundBy
 	deriving (Show)
 surroundBy_fromText :: String -> Maybe SurroundBy
 surroundBy_fromText =
-	liftM SurroundBy . readMaybe
+	fmap SurroundBy . readMaybe
 
 data DefaultFormat
 	= Default

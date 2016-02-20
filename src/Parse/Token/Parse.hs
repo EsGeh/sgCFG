@@ -8,17 +8,17 @@ import Utils (concLefts)
 
 import Text.Parsec hiding(many, (<|>))
 import Control.Applicative
-import Control.Monad
 import Data.Maybe
 
 parseTokens descr =
-	liftM deleteRepetitiveSeperators $
-	liftM catMaybes $
-		-- Maybe Token
-	liftM (map (either (maybe Nothing Just) Just)) $
+	fmap (
+		deleteRepetitiveSeperators
+		. mapMaybe (either (maybe Nothing Just) Just)
+	)$
 		-- Either (Maybe Token) Token
-	((try $ liftM Left $ sep descr) <|> liftM Right parseSymbol)
-		`manyTill` (try $ lookAhead $ skipAtEndOfFile >> eof)
+	((try $ fmap Left $ sep descr) <|> fmap Right parseSymbol)
+	`manyTill`
+	(try $ lookAhead $ skipAtEndOfFile >> eof)
 	where
 		parseSymbol =
 			either terminalToken varToken
@@ -38,7 +38,7 @@ parseTokens descr =
 			>> return ()
 
 getPos = 
-	liftM (\p -> (sourceLine p, sourceColumn p)) getPosition
+	fmap (\p -> (sourceLine p, sourceColumn p)) getPosition
 	
 
 deleteRepetitiveSeperators :: [Token] -> [Token]
@@ -51,12 +51,12 @@ sep descr =
 	choice $
 	[ try $ parseComment descr *> return Nothing
 	, try $ parseWhitespace descr *> return Nothing
-	, liftM Just $
+	, fmap Just $
 		choice $
-		[ try $ liftM OrToken $ parseOrToken descr
-		, try $ liftM ArrowToken $ parseArrow descr
+		[ try $ fmap OrToken $ parseOrToken descr
+		, try $ fmap ArrowToken $ parseArrow descr
 		]
-	, liftM (liftM SepToken) $ parseSepToken descr
+	, fmap (fmap SepToken) $ parseSepToken descr
 	]
 
 parseComment descr =
@@ -110,20 +110,20 @@ parseArrow descr =
 	<*> getPos
 
 parseOrSep p sep =
-	liftM Left (try sep) <|> liftM Right p
+	fmap Left (try sep) <|> fmap Right p
 
 parseStringOrSep ::
 	Monad m =>
 	ParsecT String u m sep -> ParsecT String u m [Either String sep]
 parseStringOrSep parseSep =
-	liftM concLefts $
+	fmap concLefts $
 	many $ parseCharOrSep parseSep
 
 parseCharOrSep ::
 	Monad m =>
 	ParsecT String u m sep -> ParsecT String u m (Either Char sep)
 parseCharOrSep parseSep =
-	liftM Right (try parseSep) <|> liftM Left anyChar
+	fmap Right (try parseSep) <|> fmap Left anyChar
 
 {-
 testTokenParser ::

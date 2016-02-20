@@ -2,6 +2,7 @@
 module GroupedGrammar.Transformations.ElimLeftRecur where
 
 import GroupedGrammar.Transformations.VarNameMonad
+import GroupedGrammar.Conversions
 import GroupedGrammar.Types
 import GroupedGrammar.Transformations.Utils
 import Grammar.Types
@@ -11,17 +12,69 @@ import Data.List
 import Control.Monad
 
 
+elimLeftRecur_full varCond varScheme =
+	applyAlgorithmUsingProductionsM varScheme $
+		processAllOnceM $
+		\(processed,remaining) current ->
+			(
+				fmap (\p -> toGroupedProductions $ maybeUnfold varCond (processed++remaining) =<< productionsFromGroupedProd =<< p)
+				. elimImmediateLeftRecursion
+			) $
+			elimIndirectLeftRecursion processed current
+
+elimLeftRecurNoEpsilon_full varCond varScheme =
+	applyAlgorithmUsingProductionsM varScheme $
+		processAllOnceM $
+		\(processed,remaining) current ->
+			(
+				fmap (\p -> toGroupedProductions $ maybeUnfold varCond (processed++remaining) =<< productionsFromGroupedProd =<< p)
+				. elimImmediateLeftRecursion_noEpsilon
+			) $
+			elimIndirectLeftRecursion processed current
+
+{- |
+	`maybeUnfold cond (processed, remaining) prod` does the following:
+	be prod = A -> X1,..., Xn.
+	if cond X1 then:
+		look for rules like
+			X1 -> ...
+		unfold them into prod.
+-}
+maybeUnfold ::
+	(Var -> Bool)
+	-> [GroupedProduction]
+	-> Production -> [Production]
+maybeUnfold cond allOtherProds production =
+	let
+		replaceBy :: [[Symbol]]
+		replaceBy =
+			map prod_right $
+			(productionsFromGroupedProd =<<) $
+			filter (cond . prod_left) $
+			allOtherProds
+	in
+		if either (const False) cond $ head $ prod_right $ production
+		then
+			prod_mapToRightM (
+				\right -> replaceAll_byIndex 0 <$> replaceBy <*> [right]
+			) $
+			production
+		else
+			[production]
+
 elimLeftRecur varScheme =
 	applyAlgorithmUsingProductionsM varScheme $
-		processAllM $ elimLeftRecurStep $ elimImmediateLeftRecursion_Dragon 
+		processAllOnceM $
+			elimLeftRecurStep $ elimImmediateLeftRecursion
 
 elimLeftRecurNoEpsilon varScheme =
 	applyAlgorithmUsingProductionsM varScheme $
-		processAllM $ elimLeftRecurStep $ elimImmediateLeftRecursion_noEpsilon
+		processAllOnceM $
+			elimLeftRecurStep $ elimImmediateLeftRecursion_noEpsilon
 
 elimLeftRecurStep ::
 	(GroupedProduction -> VarNameMonad [GroupedProduction])
-	-> ([GroupedProduction],[GroupedProduction]) -> GroupedProduction -> VarNameMonad [GroupedProduction]
+	-> ProcessedAndRemaining GroupedProduction -> GroupedProduction -> VarNameMonad [GroupedProduction]
 elimLeftRecurStep immediateStep (processed,_) currentProd =
 	immediateStep $
 	elimIndirectLeftRecursion processed currentProd
@@ -52,23 +105,22 @@ elimIndirectLeftRecursion processed currentProd =
 					_ ->
 						[right]
 
-
-elimImmediateLeftRecursion_Dragon ::
+elimImmediateLeftRecursion ::
 	GroupedProduction -> VarNameMonad [GroupedProduction]
-elimImmediateLeftRecursion_Dragon =
-	elimImmediateLeftRecursion $
+elimImmediateLeftRecursion =
+	elimImmediateLeftRecursionImpl $
 		splitProduction
 
 elimImmediateLeftRecursion_noEpsilon ::
 	GroupedProduction -> VarNameMonad [GroupedProduction]
 elimImmediateLeftRecursion_noEpsilon =
-	elimImmediateLeftRecursion $
+	elimImmediateLeftRecursionImpl $
 		splitProductionNoEpsilon
 
-elimImmediateLeftRecursion ::
+elimImmediateLeftRecursionImpl ::
 	(Var -> [[Symbol]] -> [[Symbol]] -> Var -> [GroupedProduction])
 	-> GroupedProduction -> VarNameMonad [GroupedProduction]
-elimImmediateLeftRecursion splitProduction' prod =
+elimImmediateLeftRecursionImpl splitProduction' prod =
 	let
 		left = prod_left prod
 		rightSides = prod_right prod :: [[Symbol]]
@@ -77,7 +129,7 @@ elimImmediateLeftRecursion splitProduction' prod =
 				([],_) ->
 					return $ [prod]
 				partition -> -- (recursiveProductions, otherProductions)
-					liftM
+					fmap
 						(
 							uncurry (splitProduction' left) $
 							mapFst (map $ drop 1) $

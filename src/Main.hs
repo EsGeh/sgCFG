@@ -11,13 +11,14 @@ import qualified System.Environment as Env (getArgs, getProgName)
 import Control.Monad
 import Control.Monad.Except
 import Data.List
+import Data.Maybe(fromMaybe)
 
 --progName = "sgCFG"
 
 
 main :: IO ()
 main = do
-	mConfig <- liftM configFromArgs Env.getArgs
+	mConfig <- fmap configFromArgs Env.getArgs
 	config <- case runExcept mConfig of
 		Left err -> fail $ err
 		--Nothing -> fail "error parsing arguments"
@@ -44,7 +45,7 @@ main = do
 		outputAction cmd =
 			case cmd of
 				OutputHelp ->
-					putStrLn =<< liftM usageString Env.getProgName
+					putStrLn =<< fmap usageString Env.getProgName
 					--putStrLn $ usageString progName
 				OutputTokenStream ->
 					putStrLn . tokStreamToText =<< failOrVal "error parsing token stream" errOrTokens
@@ -66,10 +67,10 @@ main = do
 								else toTextAsTree format
 						)
 						=<<
-						(return . maybe (error "could not apply transformations") id . applyTransformations (outputGrammar_transformations info) . toProdAndSymbolsTagged prodTag_empty . toTaggedGrammar :: GroupedGrammar -> IO (GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag]))
+						(return . fromMaybe (error "could not apply transformations") . applyTransformations (outputGrammar_transformations info) . toProdAndSymbolsTagged prodTag_empty . toTaggedGrammar :: GroupedGrammar -> IO (GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag]))
 						=<<
 						failOrVal "error parsing grammar" errOrGroupedGrammar
-	sequence_ $ map outputAction outputCommands
+	mapM_ outputAction outputCommands
 
 applyTransformations :: [Transformation] -> GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag] -> Maybe (GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag])
 applyTransformations t =

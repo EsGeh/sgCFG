@@ -2,9 +2,6 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveTraversable #-}
 module GroupedGrammar.Types where
 
 import Grammar.Types
@@ -15,6 +12,8 @@ import GrammarFormat
 import Prelude hiding(unlines)
 import Data.List hiding (unlines)
 import qualified Data.Set as S
+
+--import Data.Maybe
 
 
 ---------------------------------------------------
@@ -66,8 +65,8 @@ instance ToTextAs GrammarFormat SymbolTag where
 
 instance ToTextAs GrammarFormat ProductionTag where
 	toTextAs format x =
-		maybe "" id $
-		fmap printFirstSet (prodTag_firstSet x)
+		maybe "" printFirstSet $
+		prodTag_firstSet x
 		where
 			printFirstSet set =
 				concat $

@@ -5,8 +5,6 @@ import Utils
 
 import qualified Data.Graph as G
 import qualified Data.Tree as Tree
-import Control.Monad
---import Control.Applicative
 
 
 data Graph key node
@@ -22,7 +20,7 @@ graphFromEdges =
 -- (dfs)
 spanningForest :: [key] -> Graph key node -> Maybe [Tree.Tree (key, node)]
 spanningForest vars graph =
-	liftM (
+	fmap (
 		map (fmap $ lookupVertex graph) .
 		G.dfs (graph_graph graph)
 	) $ 
@@ -35,7 +33,7 @@ lookupVertex graph vertex =
 
 -- all nodes reachable from a given node
 hull graph key =
-	liftM (
+	fmap (
 		map (lookupVertex graph) .
 		G.reachable (graph_graph graph)
 	) $

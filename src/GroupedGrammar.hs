@@ -3,9 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 --{-# LANGUAGE FlexibleContexts #-}
 module GroupedGrammar(
-	module GroupedGrammar.Types,
-	module GroupedGrammar.Transformations,
-	module GroupedGrammar.Conversions,
+	module Export,
 	--groupedGrammarSub,
 	--spanningForest,
 	groupedGrammarFromTokens,
@@ -13,9 +11,9 @@ module GroupedGrammar(
 	toTextAsTree
 ) where
 
-import GroupedGrammar.Transformations
-import GroupedGrammar.Types
-import GroupedGrammar.Conversions
+import GroupedGrammar.Transformations as Export
+import GroupedGrammar.Types as Export
+import GroupedGrammar.Conversions as Export
 import GroupedGrammar.Parse
 import Grammar.Types
 import GrammarFormat
@@ -44,12 +42,12 @@ toTextAsTree format g =
 		maybe "" Tree.drawTree $
 		do
 			startSym <-
-				liftM (prod_left . value) $
+				fmap (prod_left . value) $
 				Maybe.listToMaybe $
 				fromGrammar g
 				:: Maybe Var
 			tree <-
-				liftM (fmap snd) $
+				fmap (fmap snd) $
 				Maybe.listToMaybe
 				=<< Graph.spanningForest [startSym] graph
 				:: Maybe (Tree.Tree (GroupedProduction_ProdAndSymbolsTagged ProductionTag [SymbolTag]))
