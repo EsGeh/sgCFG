@@ -20,6 +20,7 @@ import GroupedGrammar.Transformations.BreakProds
 import GroupedGrammar.Transformations.Unfold
 import GroupedGrammar.Transformations.AddProds
 import GroupedGrammar.Transformations.DeleteProds
+import GroupedGrammar.Transformations.AddActionSymbols
 
 import GroupedGrammar.Transformations.Types
 import GroupedGrammar.Types
@@ -98,6 +99,8 @@ applyTransformation t g' =
 				flip (applyTransformationImpl prodTag_empty) g' $ insertProds params
 			DeleteProductions condDescr ->
 				flip (applyTransformationImpl prodTag_empty) g' $ deleteProds $ varCondFromDescr condDescr
+			AddActionSymbols counterInit ->
+				flip (applyTransformationImpl prodTag_empty) g' $ addActionSymbols counterInit
 			SubGrammar var ->
 				flip (applyTransformationImpl prodTag_empty) g' $
 				\g prodTags graph ->

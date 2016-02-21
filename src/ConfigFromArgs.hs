@@ -52,6 +52,7 @@ usageString progName =
 		, "  unfold(negate,regex)"
 		, "  insert(start|end,prodInDefaultSyntax)"
 		, "  delete(negate,regex)"
+		, "  addActionSymbols(counterInit)"
 		, "  subGrammar"
 		, "  unused"
 		, "NAMING_SCHEME can be any string <x>, or \"%v%n\""

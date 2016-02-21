@@ -11,6 +11,8 @@ import Utils
 
 import Control.Monad.Identity
 import Control.Monad.Except
+import Text.Read
+import Data.Maybe
 
 
 data Config
@@ -167,6 +169,10 @@ instance FromPretty Transformation where
 							varCond_negate = doNegate,
 							varCond_regex = regex
 						}
+			("addActionSymbols",[counterInit]) ->
+				AddActionSymbols <$>
+					readEither counterInit
+					--(fromMaybe (Left $ "addActionSymbols expects an integer") $ readMaybe counterInit)
 			("subGrammar", [var]) ->
 				return $ SubGrammar $ Var var
 			("unused", []) ->
@@ -191,7 +197,13 @@ isEqualOrEmpty pattern str =
 
 parseTransformationDescr :: String -> (String, [String])
 parseTransformationDescr =
-	mapSnd (splitBy ',' . init . drop 1) . span (/='(')
+	mapSnd (
+		(\x -> case x of { [""] -> []; _ -> x })
+		.
+		splitBy ',' . init . drop 1
+	)
+	.
+	span (/='(')
 
 splitBy :: forall a .
 	Eq a => a -> [a] -> [[a]]

@@ -60,6 +60,9 @@ isTerminal = Either.isLeft
 
 epsilon = Terminal ""
 
+varSymbol = Right
+terminalSymbol = Left
+
 newtype Terminal = Terminal {
 	terminal_name :: String
 }

@@ -27,6 +27,7 @@ data Transformation
 	| Unfold VarCondition
 	| InsertProductions InsertProductionsParams
 	| DeleteProductions VarCondition
+	| AddActionSymbols Int
 	| SubGrammar SubGrammarInfo
 	| UnusedRules
 	deriving (Show)
