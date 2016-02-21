@@ -6,29 +6,31 @@ import GroupedGrammar.Conversions
 import GroupedGrammar.Types
 import GroupedGrammar.Transformations.Utils
 import Grammar.Types
+import Types
 import Utils
 
 import Data.List
+import Data.Maybe
 import Control.Monad
 
+--import Debug.Trace
 
-elimLeftRecur_full varCond varScheme =
+
+elimLeftRecur_full =
+	elimFull $
+	elimImmediateLeftRecursion
+
+elimLeftRecurNoEpsilon_full =
+	elimFull $
+	elimImmediateLeftRecursion_noEpsilon
+
+elimFull immediate varCond varScheme =
 	applyAlgorithmUsingProductionsM varScheme $
 		processAllOnceM $
 		\(processed,remaining) current ->
 			(
 				fmap (\p -> toGroupedProductions $ maybeUnfold varCond (processed++remaining) =<< productionsFromGroupedProd =<< p)
-				. elimImmediateLeftRecursion
-			) $
-			elimIndirectLeftRecursion processed current
-
-elimLeftRecurNoEpsilon_full varCond varScheme =
-	applyAlgorithmUsingProductionsM varScheme $
-		processAllOnceM $
-		\(processed,remaining) current ->
-			(
-				fmap (\p -> toGroupedProductions $ maybeUnfold varCond (processed++remaining) =<< productionsFromGroupedProd =<< p)
-				. elimImmediateLeftRecursion_noEpsilon
+				. immediate
 			) $
 			elimIndirectLeftRecursion processed current
 
@@ -45,22 +47,51 @@ maybeUnfold ::
 	-> [GroupedProduction]
 	-> Production -> [Production]
 maybeUnfold cond allOtherProds production =
-	let
-		replaceBy :: [[Symbol]]
-		replaceBy =
-			map prod_right $
-			(productionsFromGroupedProd =<<) $
-			filter (cond . prod_left) $
-			allOtherProds
-	in
-		if either (const False) cond $ head $ prod_right $ production
-		then
-			prod_mapToRightM (
-				\right -> replaceAll_byIndex 0 <$> replaceBy <*> [right]
+	flip prod_mapToRightM production $
+	\right ->
+		case right of
+			(Right var):rest | cond var ->
+				let
+					productionsToInsert =
+						(productionsFromGroupedProd =<<) $
+						filter ((== var) . prod_left) $
+						allOtherProds
+					in
+						(++rest) <$> (map prod_right productionsToInsert)
+			_ -> [right]
+	{-
+	if
+		maybe False (
+			either (const False) cond -- if first symbol is terminal => False
+		) $
+		listToMaybe $ -- first symbol
+		prod_right $ production
+	then
+		flip prod_mapToRightM production $
+			\right -> replaceAll_byIndex 0 <$> replaceBy <*> [right]
+		{-
+		let
+			replaceBy :: [[Symbol]]
+			replaceBy =
+				map prod_right $
+				(productionsFromGroupedProd =<<) $
+				filter ((==prod_left production) . prod_left) $
+				allOtherProds
+		in
+		-}
+			{-
+			trace (
+				concat $
+				["replacing in "
+				, pretty production
+				, ": "
+				, Utils.unlines $ map pretty replaceBy
+				]
 			) $
-			production
-		else
-			[production]
+			-}
+	else
+		[production]
+	-}
 
 elimLeftRecur varScheme =
 	applyAlgorithmUsingProductionsM varScheme $

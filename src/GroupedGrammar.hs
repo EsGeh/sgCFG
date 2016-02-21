@@ -27,10 +27,7 @@ import qualified Text.Parsec as P
 import qualified Data.Tree as Tree
 import Control.Monad
 import qualified Data.Either as Either
---import qualified Data.Foldable as Fold
---import Control.Applicative
 import qualified Data.Maybe as Maybe
---import Data.List
 
 toTextAsTree :: GrammarFormat -> GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag] -> String
 toTextAsTree format g =
