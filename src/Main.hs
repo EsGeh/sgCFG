@@ -13,8 +13,6 @@ import Control.Monad.Except
 import Data.List
 import Data.Maybe(fromMaybe)
 
---progName = "sgCFG"
-
 
 main :: IO ()
 main = do
@@ -75,9 +73,6 @@ main = do
 applyTransformations :: [Transformation] -> GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag] -> Maybe (GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag])
 applyTransformations t =
 	(foldl (>=>) return $ map applyTransformation t)
-
-f (Just a) = Left a
-f Nothing = Right ()
 
 tokStreamToText s =
 	intercalate " " $

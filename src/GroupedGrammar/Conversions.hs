@@ -8,6 +8,23 @@ import Control.Monad
 import Control.Monad.Identity
 
 
+{-
+groupedGrammarNormalize :: GroupedGrammar -> GroupedGrammar
+groupedGrammarNormalize =
+		grammar_mapToProductions $
+		toGroupedProductions .
+		concatMap productionsFromGroupedProd
+-}
+
+{- |
+	this correctly groups productions which have equal left hand sides
+-}
+groupedGrammarRebundle :: GroupedGrammar -> GroupedGrammar
+groupedGrammarRebundle =
+		grammar_mapToProductions $
+		toGroupedProductions .
+		concatMap productionsFromGroupedProd
+
 -- conversion: grouped <-> normal
 
 grammarFromGroupedGrammar ast =

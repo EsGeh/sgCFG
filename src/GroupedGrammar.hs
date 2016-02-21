@@ -59,6 +59,8 @@ groupedGrammarFromStr descr =
 	tokensFromStr descr
 
 groupedGrammarFromTokens =
+	fmap groupedGrammarRebundle
+	.
 	mapLeft show . P.parse parseGroupedGrammar ""
 
 instance FromTextAs GrammarFormat GroupedGrammar where
