@@ -6,11 +6,13 @@ import GroupedGrammar.Types
 import GroupedGrammar.Transformations.Utils
 import Grammar.Types
 import Utils
+import Types
 
-import Data.List
+import Data.List hiding( unlines )
 import Control.Monad
+import Prelude hiding( unlines )
 
---import Debug.Trace
+import qualified Debug.Trace as Trace
 
 leftFactor varScheme =
 	applyAlgorithmUsingProductionsM varScheme $
@@ -35,26 +37,27 @@ processAll_LeftFactoring f l =
 
 leftFactoringStep :: GroupedProduction -> VarNameMonad [GroupedProduction]
 leftFactoringStep prod =
-		fmap (joinProductions . join) $
-		mapM (
-			calcNewProd
-			. (mapSnd $ map $ \x -> if null x then [Left epsilon] else x)
-		) $
-		groupByPrefix $
-		(prod_right prod :: [[Symbol]])
-		where
-			calcNewProd :: ([Symbol], [[Symbol]]) -> VarNameMonad [ProductionGen Var [[Symbol]]]
-			calcNewProd rules =
-				case rules of
-					(pref, rests) | (all $ all (==Left epsilon)) rests ->
-					-- (pref, [[]]) ->
-						return $ return $ Production (prod_left prod) [pref]
-					(pref, rests) ->
-						do
-							newVar <- getSimilarVar $ prod_left prod
-							return $
-								Production (prod_left prod) [pref ++ [Right newVar]]
-								: [Production newVar rests]
+	--fmap (traceIfChanged prod) $
+	fmap (joinProductions . join) $
+	mapM (
+		calcNewProd
+		. (mapSnd $ map $ \x -> if null x then [Left epsilon] else x)
+	) $
+	groupByPrefix $
+	(prod_right prod :: [[Symbol]])
+	where
+		calcNewProd :: ([Symbol], [[Symbol]]) -> VarNameMonad [ProductionGen Var [[Symbol]]]
+		calcNewProd rules =
+			case rules of
+				(pref, rests) | (all $ all (==Left epsilon)) rests ->
+				-- (pref, [[]]) ->
+					return $ return $ Production (prod_left prod) [pref]
+				(pref, rests) ->
+					do
+						newVar <- getSimilarVar $ prod_left prod
+						return $
+							Production (prod_left prod) [pref ++ [Right newVar]]
+							: [Production newVar rests]
 
 joinProductions ::
 	[ProductionGen Var [[Symbol]]] -> [GroupedProduction]
@@ -66,18 +69,23 @@ joinProductions =
 				[] -> error "joinProductions error"
 				hd:_ -> Production (prod_left hd) $ concatMap prod_right productions
 
-{-
-ignoreTags ::
-	forall tag .
-	(GroupedProduction -> GroupedProduction)
-	-> GroupedProductionTagged tag -> GroupedProductionTagged tag
-ignoreTags f prod =
-	let
-		right = prod_right $ prod
-		tagMap = (map $ map $ tag) $ right :: [[tag]]
-	in
-		(prod_mapToRight $ to tagMap) $ f $ (prod_mapToRight from) $ prod
-		where
-			from = (map $ map $ value)
-			to tagMap right' = zipWith (zipWith tagged) tagMap right'
--}
+traceIfChanged :: GroupedProduction -> [GroupedProduction] -> [GroupedProduction]
+traceIfChanged old new =
+	(
+		--if [prod_mapToRight (groupByPrefix) old] /= new
+		if length new /= 1
+		--if [old] /= new
+		then
+			Trace.trace (
+				concat $
+				[ "expanded:\n\""
+				, pretty old
+				, "\"\nto \n\""
+				, unlines $ map pretty new
+				, "\""
+				]
+			)
+		else
+			id
+	)
+	new

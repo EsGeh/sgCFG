@@ -18,6 +18,7 @@ import GroupedGrammar.Transformations.LeftFactor
 import GroupedGrammar.Transformations.FindLoops
 import GroupedGrammar.Transformations.BreakProds
 import GroupedGrammar.Transformations.Unfold
+import GroupedGrammar.Transformations.ElimEpsilon
 import GroupedGrammar.Transformations.AddProds
 import GroupedGrammar.Transformations.DeleteProds
 import GroupedGrammar.Transformations.AddActionSymbols
@@ -95,6 +96,8 @@ applyTransformation t g' =
 				flip (applyTransformationImpl prodTag_empty) g' $ breakProds varScheme maxLength
 			Unfold varCondDescr ->
 				flip (applyTransformationImpl prodTag_empty) g' $ unfold $ varCondFromDescr varCondDescr
+			ElimEpsilon ->
+				flip (applyTransformationImpl prodTag_empty) g' $ elimEpsilon
 			InsertProductions params ->
 				flip (applyTransformationImpl prodTag_empty) g' $ insertProds params
 			DeleteProductions condDescr ->

@@ -18,15 +18,8 @@ main :: IO ()
 main = do
 	mConfig <- fmap configFromArgs Env.getArgs
 	config <- case runExcept mConfig of
-		Left err -> fail $ err
-		--Nothing -> fail "error parsing arguments"
+		Left err -> fail $ err -- "error parsing arguments"
 		Right config -> return config
-	{-
-	mConfig <- liftM configFromArgs getArgs
-	config <- case mConfig of
-		Nothing -> fail "error parsing arguments"
-		Just config -> return config
-	-}
 	str <- getContents
 	-- parse input:
 	let

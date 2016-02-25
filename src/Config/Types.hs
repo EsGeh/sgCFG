@@ -12,7 +12,6 @@ import Utils
 import Control.Monad.Identity
 import Control.Monad.Except
 import Text.Read
-import Data.Maybe
 
 
 data Config
@@ -141,6 +140,8 @@ instance FromPretty Transformation where
 							}
 					}
 					-}
+			("elimEpsilon",[]) ->
+				return $ ElimEpsilon
 			("insert", [posStr,prodsStr]) ->
 				do
 					pos <- case posStr of

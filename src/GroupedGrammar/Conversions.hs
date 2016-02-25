@@ -25,6 +25,16 @@ groupedGrammarRebundle =
 		toGroupedProductions .
 		concatMap productionsFromGroupedProd
 
+groupedGrammarNullProdsToEpsilonProds =
+	grammar_mapToProductions $
+	map $ prod_mapToRight $
+	\right ->
+		case right of
+			[] -> [[Left epsilon]]
+			[[]] -> [[Left epsilon]]
+			_ -> right
+
+
 -- conversion: grouped <-> normal
 
 grammarFromGroupedGrammar ast =

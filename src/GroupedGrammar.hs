@@ -56,7 +56,7 @@ groupedGrammarFromStr descr =
 	tokensFromStr descr
 
 groupedGrammarFromTokens =
-	fmap groupedGrammarRebundle
+	fmap (groupedGrammarNullProdsToEpsilonProds . groupedGrammarRebundle)
 	.
 	mapLeft show . P.parse parseGroupedGrammar ""
 

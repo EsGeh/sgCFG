@@ -14,12 +14,24 @@ import Control.Monad.Identity
 import qualified Data.Map as M
 
 
-selectProd :: (GroupedProduction -> Bool) -> [GroupedProduction] -> Maybe ([GroupedProduction], GroupedProduction, [GroupedProduction])
+type Zipper a = ([a], a, [a]) -- (preceding, selected, rest)
+
+fromZipper (preceding, selected, rest) =
+	preceding ++ [selected] ++ rest
+
+selectProd :: (prod -> Bool) -> [prod] -> Maybe (Zipper prod)
 selectProd cond prods =
 	case break cond prods of
 		(preceding, prod:rest) ->
 			return $ (preceding, prod, rest)
 		_ -> Nothing
+
+-- | move zipper to next element which fulfills the condition
+nextSelection :: (prod -> Bool) -> Zipper prod -> Maybe (Zipper prod)
+nextSelection cond (lastPreceding, lastSelected, lastRest) =
+	flip fmap (selectProd cond lastRest) $
+		\(preceding, selected, rest) ->
+			(lastPreceding ++ [lastSelected] ++ preceding, selected, rest)
 
 applyAlgorithmUsingProductions ::
 	([ProductionGen Var [[Symbol]]] -> [ProductionGen Var [[Symbol]]])

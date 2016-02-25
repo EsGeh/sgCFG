@@ -1,6 +1,6 @@
 module GroupedGrammar.Transformations.AddActionSymbols where
 
-import GroupedGrammar.Transformations.Types
+--import GroupedGrammar.Transformations.Types
 import GroupedGrammar.Transformations.Utils
 import GroupedGrammar.Conversions
 import Grammar.Types

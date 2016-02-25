@@ -25,6 +25,7 @@ data Transformation
 	| LeftFactor VarScheme
 	| BreakRules Int VarScheme
 	| Unfold VarCondition
+	| ElimEpsilon
 	| InsertProductions InsertProductionsParams
 	| DeleteProductions VarCondition
 	| AddActionSymbols Int

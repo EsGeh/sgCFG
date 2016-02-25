@@ -50,6 +50,7 @@ usageString progName =
 		, "  elimLeftRec_noEpsilon_full(negate,regex,NAMING_SCHEME)"
 		, "  breakRules(maxLength,NAMING_SCHEME)"
 		, "  unfold(negate,regex)"
+		, "  elimEpsilon()"
 		, "  insert(start|end,prodInDefaultSyntax)"
 		, "  delete(negate,regex)"
 		, "  addActionSymbols(counterInit)"
