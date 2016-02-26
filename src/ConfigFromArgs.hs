@@ -44,6 +44,7 @@ usageString progName =
 		, "GRAMMAR_TRANSFORMATION: can be one of:"
 		, "  annotate(<val>) where <val> one of loops, first"
 		, "  leftFactor(NAMING_SCHEME)"
+		, "  leftFactor_full(negate,regex,NAMING_SCHEME)"
 		, "  elimLeftRec(NAMING_SCHEME)"
 		, "  elimLeftRec_noEpsilon(NAMING_SCHEME)"
 		, "  elimLeftRec_full(negate,regex,NAMING_SCHEME)"

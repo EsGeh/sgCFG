@@ -2,7 +2,7 @@ module GroupedGrammar.Transformations.FindDeadEnds where
 
 import GroupedGrammar.Transformations.Utils
 import GroupedGrammar.Transformations.Types
-import GroupedGrammar.Conversions
+--import GroupedGrammar.Conversions
 import GroupedGrammar.Types
 import Grammar.Types
 

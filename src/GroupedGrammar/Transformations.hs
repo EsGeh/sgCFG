@@ -85,6 +85,8 @@ applyTransformation t g' =
 													oldAnn
 			LeftFactor varScheme ->
 				flip (applyTransformationImpl prodTag_empty) g' $ leftFactor varScheme
+			LeftFactor_Full varCond varScheme ->
+				flip (applyTransformationImpl prodTag_empty) g' $ leftFactor_full (varCondFromDescr varCond) varScheme
 			ElimLeftRecur varScheme ->
 				flip (applyTransformationImpl prodTag_empty) g' $ elimLeftRecur varScheme
 			ElimLeftRecurNoEpsilon varScheme ->

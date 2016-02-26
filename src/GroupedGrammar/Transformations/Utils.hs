@@ -5,6 +5,7 @@ module GroupedGrammar.Transformations.Utils where
 
 import GroupedGrammar.Transformations.VarNameMonad
 import GroupedGrammar.Transformations.Types
+import GroupedGrammar.Conversions
 import GroupedGrammar.Types
 import Grammar.Types
 import Utils.Graph
@@ -113,3 +114,29 @@ processAllM f l =
 					do
 						(newElemsFinished, newElemsToBeProcessedAgain) <- f (processed,remaining) x
 						processAllM' f (processed ++ newElemsFinished, newElemsToBeProcessedAgain ++ xs)
+
+{- |
+	`maybeUnfold cond allOtherProductions prod` does the following:
+	be prod = A -> X1,..., Xn.
+	if cond X1 then:
+		look for rules like
+			X1 -> ...
+		unfold them into prod.
+-}
+maybeUnfold ::
+	(Var -> Bool)
+	-> [GroupedProduction]
+	-> Production -> [Production]
+maybeUnfold cond allOtherProds production =
+	flip prod_mapToRightM production $
+	\right ->
+		case right of
+			(Right var):rest | cond var ->
+				let
+					productionsToInsert =
+						(productionsFromGroupedProd =<<) $
+						filter ((== var) . prod_left) $
+						allOtherProds
+					in
+						(++rest) <$> (map prod_right productionsToInsert)
+			_ -> [right]

@@ -2,8 +2,9 @@
 module GroupedGrammar.Transformations.LeftFactor where
 
 import GroupedGrammar.Transformations.VarNameMonad
-import GroupedGrammar.Types
 import GroupedGrammar.Transformations.Utils
+import GroupedGrammar.Conversions
+import GroupedGrammar.Types
 import Grammar.Types
 import Utils
 import Types
@@ -14,26 +15,33 @@ import Prelude hiding( unlines )
 
 import qualified Debug.Trace as Trace
 
+leftFactor_full varCond varScheme =
+	applyAlgorithmUsingProductionsM varScheme $
+	processAll_LeftFactoringM $
+	\ctxt x ->
+		fmap (\p -> toGroupedProductions $ maybeUnfold varCond (uncurry (++) $ ctxt) =<< productionsFromGroupedProd =<< p) $
+		leftFactoringStep x
+
 leftFactor varScheme =
 	applyAlgorithmUsingProductionsM varScheme $
-	processAll_LeftFactoring leftFactoringStep
+	processAll_LeftFactoringM $
+	\_ x -> leftFactoringStep x
 
-
-processAll_LeftFactoring ::
-	forall a m . Monad m =>
-	(a -> m [a]) -> [a] -> m [a]
-processAll_LeftFactoring f l =
-	case l of
-		[] -> return []
-		(x:xs) ->
-			do
-				newElems <- f x :: m [a]
-				case newElems of
-					[_] ->
-							fmap ([x] ++) $ processAll_LeftFactoring f xs
-					_ ->
-						--liftM (newElems ++) $ (processAll_LeftFactoring f $ xs)
-						processAll_LeftFactoring f $ newElems ++ xs
+processAll_LeftFactoringM ::
+	(Eq a, Monad m) =>
+	(ProcessedAndRemaining a -> a -> m [a])
+	-> [a] -> m [a]
+processAll_LeftFactoringM f =
+	processAllM $
+	\ctxt x -> f ctxt x >>=
+		\new ->
+			return $
+			case new of
+				new
+					| new == [x] ->
+						(new, []) --
+					| otherwise ->
+						([], new) -- process again...
 
 leftFactoringStep :: GroupedProduction -> VarNameMonad [GroupedProduction]
 leftFactoringStep prod =

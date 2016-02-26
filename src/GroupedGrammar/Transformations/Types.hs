@@ -23,6 +23,7 @@ data Transformation
 	| ElimLeftRecur_Full VarCondition VarScheme
 	| ElimLeftRecurNoEpsilon_Full VarCondition VarScheme
 	| LeftFactor VarScheme
+	| LeftFactor_Full VarCondition VarScheme
 	| BreakRules Int VarScheme
 	| Unfold VarCondition
 	| ElimEpsilon

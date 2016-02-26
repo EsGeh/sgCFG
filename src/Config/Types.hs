@@ -97,6 +97,14 @@ instance FromPretty Transformation where
 				return $ Annotate $ AnnotateWithFirstSet
 			("leftFactor", [varScheme]) ->
 				fmap LeftFactor $ fromPretty varScheme
+			("leftFactor_full", [negate, regex, varScheme]) ->
+				LeftFactor_Full
+					<$> (
+						VarCondition <$>
+						isEqualOrEmpty "not" negate
+						<*> return regex
+					)
+					<*> fromPretty varScheme
 			("elimLeftRec", [varScheme]) ->
 				fmap ElimLeftRecur $ fromPretty varScheme
 			("elimLeftRec_noEpsilon", [varScheme]) ->

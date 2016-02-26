@@ -34,65 +34,6 @@ elimFull immediate varCond varScheme =
 			) $
 			elimIndirectLeftRecursion processed current
 
-{- |
-	`maybeUnfold cond (processed, remaining) prod` does the following:
-	be prod = A -> X1,..., Xn.
-	if cond X1 then:
-		look for rules like
-			X1 -> ...
-		unfold them into prod.
--}
-maybeUnfold ::
-	(Var -> Bool)
-	-> [GroupedProduction]
-	-> Production -> [Production]
-maybeUnfold cond allOtherProds production =
-	flip prod_mapToRightM production $
-	\right ->
-		case right of
-			(Right var):rest | cond var ->
-				let
-					productionsToInsert =
-						(productionsFromGroupedProd =<<) $
-						filter ((== var) . prod_left) $
-						allOtherProds
-					in
-						(++rest) <$> (map prod_right productionsToInsert)
-			_ -> [right]
-	{-
-	if
-		maybe False (
-			either (const False) cond -- if first symbol is terminal => False
-		) $
-		listToMaybe $ -- first symbol
-		prod_right $ production
-	then
-		flip prod_mapToRightM production $
-			\right -> replaceAll_byIndex 0 <$> replaceBy <*> [right]
-		{-
-		let
-			replaceBy :: [[Symbol]]
-			replaceBy =
-				map prod_right $
-				(productionsFromGroupedProd =<<) $
-				filter ((==prod_left production) . prod_left) $
-				allOtherProds
-		in
-		-}
-			{-
-			trace (
-				concat $
-				["replacing in "
-				, pretty production
-				, ": "
-				, Utils.unlines $ map pretty replaceBy
-				]
-			) $
-			-}
-	else
-		[production]
-	-}
-
 elimLeftRecur varScheme =
 	applyAlgorithmUsingProductionsM varScheme $
 		processAllOnceM $
