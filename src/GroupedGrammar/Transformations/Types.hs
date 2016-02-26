@@ -31,6 +31,7 @@ data Transformation
 	| AddActionSymbols Int
 	| SubGrammar SubGrammarInfo
 	| UnusedRules
+	| FindDeadEnds
 	deriving (Show)
 
 {-

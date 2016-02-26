@@ -16,6 +16,7 @@ import GroupedGrammar.Transformations.FirstSet
 import GroupedGrammar.Transformations.ElimLeftRecur
 import GroupedGrammar.Transformations.LeftFactor
 import GroupedGrammar.Transformations.FindLoops
+import GroupedGrammar.Transformations.FindDeadEnds
 import GroupedGrammar.Transformations.BreakProds
 import GroupedGrammar.Transformations.Unfold
 import GroupedGrammar.Transformations.ElimEpsilon
@@ -114,6 +115,8 @@ applyTransformation t g' =
 								ggSeparateProdTags_grammar = subGrammar `intersectTaggedGrammars` g,
 								ggSeparateProdTags_ruleAnnotations = prodTags
 							}
+			FindDeadEnds ->
+				flip (applyTransformationImpl prodTag_empty) g' $ findDeadEnds
 			UnusedRules ->
 				flip (applyTransformationImpl prodTag_empty) g' $
 				\g prodTags graph ->

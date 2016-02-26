@@ -178,6 +178,8 @@ instance FromPretty Transformation where
 				return $ SubGrammar $ Var var
 			("unused", []) ->
 				return $ UnusedRules
+			("findDeadEnds", []) ->
+				return $ FindDeadEnds
 			x -> Left $
 				concat $
 				[ "fromPretty error for Transformation, got "

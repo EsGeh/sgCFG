@@ -55,7 +55,10 @@ applyAlgorithmUsingProductionsM' ::
 	Monad m =>
 	(forall a . m a -> a) ->
 	([ProductionGen Var [[Symbol]]] -> m [ProductionGen Var [[Symbol]]])
-	-> GroupedGrammarTagged [SymbolTag] -> M.Map Var prodTag -> Graph Symbol (GroupedProductionTagged [SymbolTag]) -> Maybe (GroupedGrammar_SeparateProdTags prodTag [SymbolTag])
+	-> GroupedGrammarTagged [SymbolTag]
+	-> M.Map Var prodTag
+	-> Graph Symbol (GroupedProductionTagged [SymbolTag])
+	-> Maybe (GroupedGrammar_SeparateProdTags prodTag [SymbolTag])
 applyAlgorithmUsingProductionsM' runMonad algorithm grammar _ _ =
 	return $
 	ggSeparateProdTags_mapToGrammar calcGrammar $

@@ -14,6 +14,13 @@ data Graph key node
 		graph_vertexFromKey :: key -> Maybe G.Vertex
 	}
 
+graph_nodeKeys :: Graph key node -> [key]
+graph_nodeKeys g =
+	map (xtract . graph_nodeFromVertex g) $
+	G.vertices $ graph_graph g
+	where
+		xtract (_, x, _) = x
+
 graphFromEdges =
 	uncurry3 Graph . G.graphFromEdges
 
