@@ -1,8 +1,11 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module GroupedGrammar.Transformations.VarNameMonad(
-	VarNameMonad(..),
+	VarNameMonad,
+	VarNameMonadT,
 	getSimilarVar,
-	runVarNameMonad
+	runVarNameMonad,
+	runVarNameMonadT,
+	VarScheme(..)
 ) where
 
 import GroupedGrammar.Types
@@ -13,21 +16,26 @@ import qualified Data.Set as S
 import qualified Data.Either as Either
 import Data.Char
 import Control.Monad.State
+import Control.Monad.Identity
 
 
-newtype VarNameMonad a = VarNameMonad {
-	fromVarNameMonad :: State VarNameState a
+type VarNameMonad a = VarNameMonadT Identity a
+
+newtype VarNameMonadT m a = VarNameMonad {
+	fromVarNameMonad :: StateT VarNameState m a
 }
-	deriving( Monad, Applicative, Functor )
+	deriving( Monad, Applicative, Functor, MonadTrans)
 
 data VarNameState = VarNameState {
 	fromVarNameState :: S.Set Var,
 	varNameState_varScheme :: VarScheme
 }
 
+runVarNameMonad scheme g = runIdentity . runVarNameMonadT scheme g
+
 varNameState_map f s = s{ fromVarNameState = f (fromVarNameState s) }
 
-getSimilarVar :: Var -> VarNameMonad Var
+getSimilarVar :: Monad m => Var -> VarNameMonadT m Var
 getSimilarVar var =
 	VarNameMonad $
 	do
@@ -61,9 +69,12 @@ getSimilarVar var =
 						else
 							var
 
-runVarNameMonad :: VarScheme -> VarNameMonad a -> GroupedGrammar -> a
-runVarNameMonad scheme m g =
-	(evalState $ fromVarNameMonad m) $ flip VarNameState scheme $
+runVarNameMonadT ::
+	Monad m =>
+	VarScheme -> GroupedGrammar -> VarNameMonadT m a -> m a
+runVarNameMonadT scheme g m =
+	(evalStateT $ fromVarNameMonad m) $
+	flip VarNameState scheme $
 	S.fromList $
 	collectAllVars $
 	fromGrammar g

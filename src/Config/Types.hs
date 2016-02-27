@@ -10,7 +10,6 @@ import Types
 import Utils
 
 import Control.Monad.Identity
-import Control.Monad.Except
 import Text.Read
 
 
@@ -127,7 +126,6 @@ instance FromPretty Transformation where
 				)
 				<*>
 				fromPretty varScheme
-				--fmap ElimLeftRecur $ fromPretty varScheme
 			("breakRules", [maxLength, varScheme]) ->
 				fmap (uncurry BreakRules) $ liftM2 (,) (return $ read maxLength) (fromPretty varScheme)
 			("unfold", [negate,regex]) ->
@@ -138,16 +136,6 @@ instance FromPretty Transformation where
 							varCond_negate = doNegate,
 							varCond_regex = regex
 						}
-					{-
-					return $ Unfold $ UnfoldParams {
-						unfoldParams_repeatUntilNotChanging = doRepeat,
-						unfoldParams_varCondDescr =
-							VarCondition {
-								varCond_negate = doNegate,
-								varCond_regex = regex
-							}
-					}
-					-}
 			("elimEpsilon",[]) ->
 				return $ ElimEpsilon
 			("insert", [posStr,prodsStr]) ->

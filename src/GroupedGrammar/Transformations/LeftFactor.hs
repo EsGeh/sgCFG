@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts #-}
 module GroupedGrammar.Transformations.LeftFactor where
 
 import GroupedGrammar.Transformations.VarNameMonad
@@ -10,20 +11,31 @@ import Utils
 import Types
 
 import Data.List hiding( unlines )
-import Control.Monad
+--import Control.Monad
 import Prelude hiding( unlines )
 
 import qualified Debug.Trace as Trace
 
-leftFactor_full varCond varScheme =
-	applyAlgorithmUsingProductionsM varScheme $
+leftFactor_full ::
+	(MonadLog m, MonadError String m) =>
+	(Var -> Bool)
+	-> VarScheme
+	-> TransformationImplTypeM prodTag [SymbolTag] m
+leftFactor_full varCond varScheme grammar _ _ =
+	runVarNameMonadT varScheme (grammar_mapToProductions (map $ groupedProd_removeSymbolTags) $ grammar) $
+	flip applyAlgorithmUsingProductionsM grammar $
 	processAll_LeftFactoringM $
 	\ctxt x ->
 		fmap (\p -> toGroupedProductions $ maybeUnfold varCond (uncurry (++) $ ctxt) =<< productionsFromGroupedProd =<< p) $
 		leftFactoringStep x
 
-leftFactor varScheme =
-	applyAlgorithmUsingProductionsM varScheme $
+leftFactor ::
+	(MonadLog m, MonadError String m) =>
+	VarScheme
+	-> TransformationImplTypeM prodTag [SymbolTag] m
+leftFactor varScheme grammar _ _ =
+	runVarNameMonadT varScheme (grammar_mapToProductions (map $ groupedProd_removeSymbolTags) $ grammar) $
+	flip applyAlgorithmUsingProductionsM grammar $
 	processAll_LeftFactoringM $
 	\_ x -> leftFactoringStep x
 
@@ -43,9 +55,12 @@ processAll_LeftFactoringM f =
 					| otherwise ->
 						([], new) -- process again...
 
-leftFactoringStep :: GroupedProduction -> VarNameMonad [GroupedProduction]
+leftFactoringStep ::
+	forall m .
+	MonadLog m =>
+	GroupedProduction -> VarNameMonadT m [GroupedProduction]
 leftFactoringStep prod =
-	--fmap (traceIfChanged prod) $
+	-- (lift . logIfChanged prod =<<) $
 	fmap (joinProductions . join) $
 	mapM (
 		calcNewProd
@@ -54,7 +69,7 @@ leftFactoringStep prod =
 	groupByPrefix $
 	(prod_right prod :: [[Symbol]])
 	where
-		calcNewProd :: ([Symbol], [[Symbol]]) -> VarNameMonad [ProductionGen Var [[Symbol]]]
+		calcNewProd :: ([Symbol], [[Symbol]]) -> VarNameMonadT m [ProductionGen Var [[Symbol]]]
 		calcNewProd rules =
 			case rules of
 				(pref, rests) | (all $ all (==Left epsilon)) rests ->
@@ -76,6 +91,20 @@ joinProductions =
 			case productions of
 				[] -> error "joinProductions error"
 				hd:_ -> Production (prod_left hd) $ concatMap prod_right productions
+
+logIfChanged :: MonadLog m => GroupedProduction -> [GroupedProduction] -> m [GroupedProduction]
+logIfChanged old new =
+	do
+		when (length new /= 1) $ 
+			doLog (
+				concat $
+				[ "expanded:\n\t"
+				, pretty old
+				, "\nto\n"
+				, unlines $ map (("\t" ++) . pretty) new
+				]
+			)
+		return $ new
 
 traceIfChanged :: GroupedProduction -> [GroupedProduction] -> [GroupedProduction]
 traceIfChanged old new =

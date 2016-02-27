@@ -1,19 +1,32 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
-module GroupedGrammar.Transformations.Utils where
+module GroupedGrammar.Transformations.Utils(
+	module GroupedGrammar.Transformations.Utils,
+	module GroupedGrammar.Transformations.VarNameMonad,
+	module Utils.Logging,
+	module Control.Monad.Except
+) where
 
-import GroupedGrammar.Transformations.VarNameMonad
 import GroupedGrammar.Transformations.Types
+import GroupedGrammar.Transformations.VarNameMonad
 import GroupedGrammar.Conversions
 import GroupedGrammar.Types
 import Grammar.Types
 import Utils.Graph
+import Utils.Logging
 
 import Control.Monad.Identity
+import Control.Monad.Except
 
 import qualified Data.Map as M
 
+
+type TransformationImplType prodTag symbolTag =
+	GroupedGrammarTagged symbolTag -> M.Map Var prodTag -> Graph Symbol (GroupedProductionTagged symbolTag) -> GroupedGrammar_SeparateProdTags prodTag symbolTag
+
+type TransformationImplTypeM prodTag symbolTag m =
+	GroupedGrammarTagged symbolTag -> M.Map Var prodTag -> Graph Symbol (GroupedProductionTagged symbolTag) -> m (GroupedGrammar_SeparateProdTags prodTag symbolTag)
 
 type Zipper a = ([a], a, [a]) -- (preceding, selected, rest)
 
@@ -34,6 +47,37 @@ nextSelection cond (lastPreceding, lastSelected, lastRest) =
 		\(preceding, selected, rest) ->
 			(lastPreceding ++ [lastSelected] ++ preceding, selected, rest)
 
+applyAlgorithmUsingProductions f =
+	runIdentity .
+	applyAlgorithmUsingProductionsM (return . f)
+
+applyAlgorithmUsingProductionsM ::
+	forall m prodTag .
+	Monad m =>
+	([ProductionGen Var [[Symbol]]] -> m [ProductionGen Var [[Symbol]]])
+	-> GroupedGrammarTagged [SymbolTag]
+	-> m (GroupedGrammar_SeparateProdTags prodTag [SymbolTag])
+applyAlgorithmUsingProductionsM algorithm grammar =
+	ggSeparateProdTags_mapToGrammarM calcGrammar $
+	GroupedGrammar_SeparateProdTags grammar M.empty
+	where
+		calcGrammar :: forall tag . GroupedGrammarTagged [tag] -> m (GroupedGrammarTagged [tag])
+		calcGrammar =
+			grammar_mapToProductionsM $
+			withUntaggedProductionsM $
+				algorithm 
+			where
+				withUntaggedProductionsM ::
+					([ProductionGen Var [[Symbol]]] -> m [ProductionGen Var [[Symbol]]])
+					-> [GroupedProductionTagged [tag]] -> m [GroupedProductionTagged [tag]]
+				withUntaggedProductionsM f =
+					fmap (map $ groupedProd_addSymbolTags [])
+					.
+					f
+					.
+					map groupedProd_removeSymbolTags
+
+{-
 applyAlgorithmUsingProductions ::
 	([ProductionGen Var [[Symbol]]] -> [ProductionGen Var [[Symbol]]])
 	-> GroupedGrammarTagged [SymbolTag]
@@ -82,6 +126,7 @@ applyAlgorithmUsingProductionsM' runMonad algorithm grammar _ _ =
 					f
 					.
 					map (prod_mapToRight $ map $ map $ value)
+-}
 
 type ProcessedAndRemaining a = ([a],[a])
 

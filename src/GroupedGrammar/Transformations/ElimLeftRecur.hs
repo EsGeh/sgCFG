@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 module GroupedGrammar.Transformations.ElimLeftRecur where
 
 import GroupedGrammar.Transformations.VarNameMonad
@@ -11,11 +12,32 @@ import Utils
 
 import Data.List
 --import Data.Maybe
-import Control.Monad
+--import Control.Monad
 
 --import Debug.Trace
 
 
+elimLeftRecur_full =
+	elimFull $
+	elimImmediateLeftRecursion
+
+elimLeftRecurNoEpsilon_full =
+	elimFull $
+	elimImmediateLeftRecursion_noEpsilon
+
+elimFull immediate varCond varScheme grammar _ _ =
+	runVarNameMonadT
+		varScheme
+		(grammar_mapToProductions (map groupedProd_removeSymbolTags) grammar) $
+	flip applyAlgorithmUsingProductionsM grammar $
+		processAllOnceM $
+		\(processed,remaining) current ->
+			(
+				fmap (\p -> toGroupedProductions $ maybeUnfold varCond (processed++remaining) =<< productionsFromGroupedProd =<< p)
+				. immediate
+			) $
+			elimIndirectLeftRecursion processed current
+{-
 elimLeftRecur_full =
 	elimFull $
 	elimImmediateLeftRecursion
@@ -33,20 +55,29 @@ elimFull immediate varCond varScheme =
 				. immediate
 			) $
 			elimIndirectLeftRecursion processed current
+-}
 
-elimLeftRecur varScheme =
-	applyAlgorithmUsingProductionsM varScheme $
+elimLeftRecur varScheme grammar _ _=
+	runVarNameMonadT
+		varScheme
+		(grammar_mapToProductions (map groupedProd_removeSymbolTags) grammar) $
+	flip applyAlgorithmUsingProductionsM grammar $
 		processAllOnceM $
 			elimLeftRecurStep $ elimImmediateLeftRecursion
 
-elimLeftRecurNoEpsilon varScheme =
-	applyAlgorithmUsingProductionsM varScheme $
+elimLeftRecurNoEpsilon varScheme grammar _ _=
+	runVarNameMonadT
+		varScheme
+		(grammar_mapToProductions (map groupedProd_removeSymbolTags) grammar) $
+	flip applyAlgorithmUsingProductionsM grammar $
 		processAllOnceM $
 			elimLeftRecurStep $ elimImmediateLeftRecursion_noEpsilon
 
 elimLeftRecurStep ::
-	(GroupedProduction -> VarNameMonad [GroupedProduction])
-	-> ProcessedAndRemaining GroupedProduction -> GroupedProduction -> VarNameMonad [GroupedProduction]
+	Monad m =>
+	(GroupedProduction -> VarNameMonadT m [GroupedProduction])
+	-> ProcessedAndRemaining GroupedProduction
+	-> GroupedProduction -> VarNameMonadT m [GroupedProduction]
 elimLeftRecurStep immediateStep (processed,_) currentProd =
 	immediateStep $
 	elimIndirectLeftRecursion processed currentProd
@@ -78,20 +109,23 @@ elimIndirectLeftRecursion processed currentProd =
 						[right]
 
 elimImmediateLeftRecursion ::
-	GroupedProduction -> VarNameMonad [GroupedProduction]
+	Monad m =>
+	GroupedProduction -> VarNameMonadT m [GroupedProduction]
 elimImmediateLeftRecursion =
 	elimImmediateLeftRecursionImpl $
 		splitProduction
 
 elimImmediateLeftRecursion_noEpsilon ::
-	GroupedProduction -> VarNameMonad [GroupedProduction]
+	Monad m =>
+	GroupedProduction -> VarNameMonadT m [GroupedProduction]
 elimImmediateLeftRecursion_noEpsilon =
 	elimImmediateLeftRecursionImpl $
 		splitProductionNoEpsilon
 
 elimImmediateLeftRecursionImpl ::
+	Monad m =>
 	(Var -> [[Symbol]] -> [[Symbol]] -> Var -> [GroupedProduction])
-	-> GroupedProduction -> VarNameMonad [GroupedProduction]
+	-> GroupedProduction -> VarNameMonadT m [GroupedProduction]
 elimImmediateLeftRecursionImpl splitProduction' prod =
 	let
 		left = prod_left prod

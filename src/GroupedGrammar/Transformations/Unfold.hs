@@ -7,14 +7,14 @@ import Utils
 
 import Data.List
 import Data.Maybe
-import Control.Monad
 
 
-unfold varCond =
+unfold varCond grammar _ _ =
 	let
 		cond = varCond . prod_left
 	in
-		applyAlgorithmUsingProductions $
+		return $
+		flip applyAlgorithmUsingProductions grammar $
 		\prods ->
 			maybe prods (
 				fromZipper

@@ -7,13 +7,12 @@ import GroupedGrammar.Types
 import Grammar.Types
 import Types
 --import GrammarFormat
+--import GrammarFormat
 --import Types
 import Utils.Graph
 
 import Text.Regex.TDFA
 import qualified Data.Map as M
---import qualified Data.Set as S
---import Data.List
 
 
 data Transformation
@@ -34,14 +33,6 @@ data Transformation
 	| UnusedRules
 	| FindDeadEnds
 	deriving (Show)
-
-{-
-data SelectCondition
-	= SelectByLeft VarCondition
-	-- | SelectByRight RightCondition
-	| SelectReachable
-	| SelectNonReachable
--}
 
 type SubGrammarInfo = Var
 data AnnotateInfo
@@ -100,22 +91,25 @@ prodCondFromVarCondDescr descr =
 	. prod_left
 -}
 
-instance FromPretty VarScheme where
-	fromPretty str =
-		case str of
-			"%v%n" -> Right $ FromVar
-			"" -> Left $ "fromPretty error reading VarScheme"
-			str -> Right $ Const str
-
 data GroupedGrammar_SeparateProdTags productionTag symbolTag =
 	GroupedGrammar_SeparateProdTags {
 		ggSeparateProdTags_grammar :: GrammarGen (GroupedProductionTagged symbolTag),
 		ggSeparateProdTags_ruleAnnotations :: M.Map Var productionTag
 	}
-ggSeparateProdTags_mapToGrammar f g =
-	g{ ggSeparateProdTags_grammar = f (ggSeparateProdTags_grammar g) }
-ggSeparateProdTags_mapToRuleAnnotations f g =
-	g{ ggSeparateProdTags_ruleAnnotations = f (ggSeparateProdTags_ruleAnnotations g) }
+ggSeparateProdTags_mapToGrammar =
+	fromMonadicLens ggSeparateProdTags_mapToGrammarM
+ggSeparateProdTags_mapToRuleAnnotations =
+	fromMonadicLens ggSeparateProdTags_mapToRuleAnnotationsM
+
+ggSeparateProdTags_mapToGrammarM f g =
+	do
+		new <- f (ggSeparateProdTags_grammar g)
+		return $ g{ ggSeparateProdTags_grammar = new }
+
+ggSeparateProdTags_mapToRuleAnnotationsM f g =
+	do
+		new <- f (ggSeparateProdTags_ruleAnnotations g)
+		return $ g{ ggSeparateProdTags_ruleAnnotations = new }
 
 type GrammarGraph symbolTag =
 	Graph Symbol (GroupedProductionTagged symbolTag)
@@ -138,21 +132,6 @@ graphFromGroupedGrammar keyFromProd calcDest g =
 			( prod -- node
 			, keyFromProd prod -- key
 			, calcDest prod) -- [key]
-
-toTaggedGrammar :: GroupedGrammar -> GroupedGrammarTagged [symbolTag]
-toTaggedGrammar =
-	fmap $ toTaggedProduction
-
-fromTaggedGrammar :: GroupedGrammarTagged symbolTag -> GroupedGrammar
-fromTaggedGrammar =
-	fmap $ fromTaggedProduction
-
-toTaggedProduction =
-	prod_mapToRight $ map $ map $ Tagged []
-
-fromTaggedProduction = 
-	prod_mapToRight $ map $ map $ value
-
 
 toSeparateProdTags ::
 	GroupedGrammar_ProdAndSymbolsTagged prodTag symbolTag -> GroupedGrammar_SeparateProdTags prodTag symbolTag
@@ -190,3 +169,91 @@ fromSeparateProdTags defProdTag g =
 deriving instance
 	(Eq productionTag, Eq symbolTag)
 	=> Eq (GroupedGrammar_SeparateProdTags productionTag symbolTag)
+
+instance Pretty Transformation where
+	pretty t =
+		case t of
+			Annotate info ->
+				concat $
+				["annotate(", pretty info, ")"]
+			ElimLeftRecur varScheme ->
+				concat $
+				["elimLeftRec(", pretty varScheme, ")"]
+			ElimLeftRecurNoEpsilon varScheme ->
+				concat $
+				["elimLeftRec_noEpsilon(", pretty varScheme, ")"]
+			ElimLeftRecur_Full varCondition varScheme ->
+				concat $
+				["elimLeftRec_full(", pretty varCondition, ",", pretty varScheme, ")"]
+			ElimLeftRecurNoEpsilon_Full varCondition varScheme ->
+				concat $
+				["elimLeftRec_noEpsilon_full(", pretty varCondition, ",", pretty varScheme, ")"]
+			LeftFactor varScheme ->
+				concat $
+				["leftFactor(", pretty varScheme, ")"]
+			LeftFactor_Full varCondition varScheme ->
+				concat $
+				["leftFactor_full(", pretty varCondition, ",", pretty varScheme, ")"]
+			BreakRules maxLength varScheme ->
+				concat $
+				["breakRules(", show maxLength, ",", pretty varScheme, ")"]
+			Unfold varCondition ->
+				concat $
+				["unfold(", pretty varCondition, ")"]
+			ElimEpsilon ->
+				concat $
+				["elimEpsilon()"]
+			InsertProductions params ->
+				concat $
+				[ "insert("
+				,
+					case insertProdsParams_position params of
+						GrammarPosBeginning -> "start"
+						GrammarPosEnding -> "end"
+				, ","
+				, "?"
+				--, toTextAs (defaultFormat Default) $ Grammar $ insertProdsParams_productions params
+				, ")"
+				]
+			DeleteProductions varCondition ->
+				concat $
+				["delete(", pretty varCondition, ")"]
+			AddActionSymbols startIndex ->
+				concat $
+				["addActionSymbols(", show startIndex, ")"]
+			SubGrammar subGrammarInfo ->
+				concat $
+				["subGrammar(", pretty subGrammarInfo, ")"]
+			UnusedRules ->
+				concat $
+				["unused()"]
+			FindDeadEnds ->
+				concat $
+				["findDeadEnds()"]
+
+instance Pretty AnnotateInfo where
+	pretty i =
+		case i of
+			AnnotateWithLoops -> "loops"
+			AnnotateWithFirstSet -> "first"
+
+instance Pretty VarCondition where
+	pretty x =
+		concat $
+		[ if varCond_negate x then "not" else ""
+		, ","
+		, varCond_regex x
+		]
+
+instance Pretty VarScheme where
+	pretty s =
+		case s of
+			Const str -> str
+			FromVar -> "%v%n"
+
+instance FromPretty VarScheme where
+	fromPretty str =
+		case str of
+			"%v%n" -> Right $ FromVar
+			"" -> Left $ "fromPretty error reading VarScheme"
+			str -> Right $ Const str

@@ -6,7 +6,6 @@ import Parse.Format
 import Utils
 
 import Text.Parsec as P hiding(many, (<|>))
-import Control.Monad
 import Control.Applicative
 
 import qualified Data.List as List

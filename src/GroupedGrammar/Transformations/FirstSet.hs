@@ -2,9 +2,9 @@
 module GroupedGrammar.Transformations.FirstSet where
 
 import GroupedGrammar.Types
-import GroupedGrammar.Transformations.Types
+import GroupedGrammar.Conversions
+--import GroupedGrammar.Transformations.Utils
 import Grammar.Types
-import Types
 import Utils
 
 import qualified Data.Map as M
@@ -12,65 +12,75 @@ import qualified Data.Set as S
 import Data.Maybe
 
 
-annotateWithFirstSets ::
-	Eq symbolTag
-	=> GroupedGrammar_SeparateProdTags FirstSet symbolTag -> GroupedGrammar_SeparateProdTags FirstSet symbolTag
-annotateWithFirstSets g =
-	firstTimeNotChanging g $
-	iterate firstSetsStep g
+--annotateWithFirstSets ::
+annotateWithFirstSets grammar =
+	fmap (ProductionTag . Just) $
+	(
+	repeatTillNotChanging $
+	step (concatMap productionsFromGroupedProd $ fromGrammar $ grammar)
+	) $
+	(initFirstSets $ fromGrammar $ grammar)
 
-firstSetsStep :: forall symbolTag .
-	Eq symbolTag
-	=> GroupedGrammar_SeparateProdTags FirstSet symbolTag -> GroupedGrammar_SeparateProdTags FirstSet symbolTag
-firstSetsStep g =
-	let
-		grammar = ggSeparateProdTags_grammar g :: GroupedGrammarTagged symbolTag
-	in
-		(ggSeparateProdTags_mapToRuleAnnotations $ updateAnn $ fromTaggedGrammar grammar) g
-		where
-			updateAnn :: GroupedGrammar -> M.Map Var FirstSet -> M.Map Var FirstSet
-			updateAnn grammar ruleAnnotations =
-				let
-					rules = fromGrammar grammar
-				in
-					M.fromList $
-					map
-						(\prod ->
-							let
-								var = prod_left prod
-								oldFirstSet = fromMaybe (error "updateAnn: error looking up old first set") $ M.lookup var ruleAnnotations
-							in
-								(var, calcNewFirst (flip M.lookup ruleAnnotations) prod oldFirstSet)
-						)
-						rules 
-					where
-						calcNewFirst :: (Var -> Maybe FirstSet) -> GroupedProduction -> FirstSet -> FirstSet
-						calcNewFirst lookup prod oldFirstSet =
-							let
-								--left = prod_left prod
-								right = prod_right prod
-								func right' =
-									case right' of
-										((Left t):xs) ->
-											if t /= epsilon
-											then S.singleton t
-											else S.singleton t `S.union` func xs
-										((Right var):xs) ->
-											let
-												directFirst =
-													fromMaybe (
-														S.singleton $
-														Terminal $
-														pretty var
-														--"FIRST(" ++ pretty var ++ ")"
-													) $
-													lookup var
-											in
-												if not $ epsilon `S.member` directFirst
-												then directFirst
-												else
-													directFirst `S.union` func xs
-										_ -> S.empty
-							in
-								foldl S.union oldFirstSet $
-								map func right
+{-
+annotateWithFirstSets ::
+	TransformationImplTypeM ProductionTag [SymbolTag] Maybe
+annotateWithFirstSets ggTagged _ _ =
+	return $
+	GroupedGrammar_SeparateProdTags {
+		ggSeparateProdTags_grammar = ggTagged,
+		ggSeparateProdTags_ruleAnnotations =
+			fmap (ProductionTag . Just) $
+			(
+			repeatTillNotChanging $
+			step (concatMap productionsFromGroupedProd $ fromGrammar $ fromTaggedGrammar ggTagged)
+			) $
+			(initFirstSets $ fromGrammar $ fromTaggedGrammar ggTagged)
+	}
+-}
+
+initFirstSets :: [GroupedProduction] -> M.Map Var FirstSet
+initFirstSets prods =
+	M.fromList $
+	map (\p -> (prod_left p, S.empty))
+	prods
+
+step :: [Production] -> M.Map Var FirstSet -> M.Map Var FirstSet
+step prods =
+	foldl (.) id (map updateFirstSet prods)
+	where
+		updateFirstSet :: Production -> M.Map Var FirstSet -> M.Map Var FirstSet
+		updateFirstSet prod firstMap =
+			let
+				left = prod_left prod
+				right = prod_right prod
+			in
+				(
+					\newFirsts ->
+						M.adjust (S.union newFirsts) left firstMap
+				) $
+				calcNewFirstSet (flip M.lookup firstMap) right
+
+calcNewFirstSet :: (Var -> Maybe FirstSet) -> [Symbol] -> FirstSet
+calcNewFirstSet lookup right =
+	fromMaybe S.empty $
+	case right of
+		((Left t):xs) ->
+			return $
+			(
+				if t == epsilon
+				then
+					\x -> x `S.union` calcNewFirstSet lookup xs
+				else
+				id
+			) $
+			S.singleton t
+		((Right var):xs) ->
+			do
+				directFirst <- lookup var
+				if epsilon `S.member` directFirst
+					then
+						return $ directFirst `S.union` calcNewFirstSet lookup xs
+					else
+						return $ directFirst
+		_ ->
+			Nothing

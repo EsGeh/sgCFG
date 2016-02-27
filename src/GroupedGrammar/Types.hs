@@ -54,6 +54,32 @@ data SymbolTag
 	= ProductionRef Var
 	deriving( Eq, Ord )
 
+toTaggedGrammar :: GroupedGrammar -> GroupedGrammarTagged [symbolTag]
+toTaggedGrammar =
+	fmap $ toTaggedProduction
+
+fromTaggedGrammar :: GroupedGrammarTagged symbolTag -> GroupedGrammar
+fromTaggedGrammar =
+	fmap $ fromTaggedProduction
+
+toTaggedProduction =
+	prod_mapToRight $ map $ map $ Tagged []
+
+fromTaggedProduction = 
+	prod_mapToRight $ map $ map $ value
+
+groupedProd_removeSymbolTags =
+	prod_mapToRight $ map $ map $ value
+
+groupedProd_addSymbolTags defTag =
+	prod_mapToRight $ map $ map $ tagged defTag
+
+toProdAndSymbolsTagged ::
+	productionTag ->
+		GroupedGrammarTagged symbolTag -> GroupedGrammar_ProdAndSymbolsTagged productionTag symbolTag
+toProdAndSymbolsTagged defTag =
+	fmap $ tagged defTag
+
 ---------------------------------------------------
 -- instances
 ---------------------------------------------------

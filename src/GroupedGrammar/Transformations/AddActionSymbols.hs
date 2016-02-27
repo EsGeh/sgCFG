@@ -7,9 +7,9 @@ import Grammar.Types
 
 import Control.Monad.State
 
---addActionSymbols :: Int
-addActionSymbols counterInit =
-	applyAlgorithmUsingProductions $
+addActionSymbols counterInit grammar _ _ =
+	return $
+	flip applyAlgorithmUsingProductions grammar $
 	asWithNormalProductions $
 	flip evalState counterInit
 	.

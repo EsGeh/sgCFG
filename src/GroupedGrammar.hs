@@ -25,7 +25,6 @@ import qualified Utils.Graph as Graph
 
 import qualified Text.Parsec as P
 import qualified Data.Tree as Tree
-import Control.Monad
 import qualified Data.Either as Either
 import qualified Data.Maybe as Maybe
 

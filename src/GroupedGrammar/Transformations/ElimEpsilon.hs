@@ -5,15 +5,14 @@ import GroupedGrammar.Transformations.Utils
 import Grammar.Types
 import Utils
 
-import Control.Monad
 
-
-elimEpsilon =
+elimEpsilon grammar _ _ =
 	let
 		cond p =
 			[Left epsilon] == prod_right p
 	in
-		applyAlgorithmUsingProductions $
+		return $
+		flip applyAlgorithmUsingProductions grammar $
 		asWithNormalProductions $
 		repeatTillNotChanging $
 		\prods ->

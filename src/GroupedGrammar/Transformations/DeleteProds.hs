@@ -5,11 +5,12 @@ import Grammar.Types
 
 import Utils
 
-deleteProds varCond =
+deleteProds varCond grammar _ _ =
+	return $
 	let
 		cond = varCond . prod_left
 	in
-		applyAlgorithmUsingProductions $
+		flip applyAlgorithmUsingProductions grammar $
 		repeatTillNotChanging $
 		\prods ->
 			maybe prods deleteProd $

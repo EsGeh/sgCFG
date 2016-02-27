@@ -1,19 +1,32 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts #-}
 module GroupedGrammar.Transformations.BreakProds where
 
-import GroupedGrammar.Transformations.VarNameMonad
+import GroupedGrammar.Transformations.Utils
 --import GroupedGrammar.Types
 import GroupedGrammar.Conversions
-import GroupedGrammar.Transformations.Utils
+import GroupedGrammar.Types
 import Grammar.Types
 
 
-breakProds varScheme maxLength =
-	applyAlgorithmUsingProductionsM varScheme $
+breakProds ::
+	(MonadLog m, MonadError String m) =>
+	VarScheme
+	-> Int
+	-> TransformationImplTypeM prodTag [SymbolTag] m
+breakProds varScheme maxLength grammar _ _ =
+	runVarNameMonadT
+		varScheme
+		(grammar_mapToProductions (map groupedProd_removeSymbolTags) $ grammar) $
+	flip applyAlgorithmUsingProductionsM grammar $
 	asWithNormalProductionsM $ 
 		processAllM $ breakProdsStep maxLength
 
-breakProdsStep :: Int -> (ProcessedAndRemaining Production) -> Production -> VarNameMonad ([Production], [Production])
+breakProdsStep ::
+	Monad m =>
+	Int ->
+	(ProcessedAndRemaining Production)
+	-> Production -> VarNameMonadT m ([Production], [Production])
 breakProdsStep maxLength _ currentProd =
 	let
 		breakedRule = breakProdIfTooLong maxLength currentProd
@@ -23,7 +36,9 @@ breakProdsStep maxLength _ currentProd =
 		-}
 		fmap (splitAt 1) $ breakedRule
 
-breakProdIfTooLong :: Int -> Production -> VarNameMonad [Production]
+breakProdIfTooLong ::
+	Monad m =>
+	Int -> Production -> VarNameMonadT m [Production]
 breakProdIfTooLong maxLength prod =
 	if (length $ prod_right prod) > maxLength
 	then

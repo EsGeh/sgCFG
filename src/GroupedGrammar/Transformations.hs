@@ -2,6 +2,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module GroupedGrammar.Transformations(
+	TransformationMonadT, TransformationMonad,
+	-- doLog, withNoLogging,
 	Transformation(..), AnnotateInfo(..),
 	VarCondition(..),
 	InsertProductionsParams(..),
@@ -24,91 +26,83 @@ import GroupedGrammar.Transformations.AddProds
 import GroupedGrammar.Transformations.DeleteProds
 import GroupedGrammar.Transformations.AddActionSymbols
 
+import GroupedGrammar.Transformations.Utils
 import GroupedGrammar.Transformations.Types
 import GroupedGrammar.Types
 import Grammar.Types
 import Utils.Graph
 
+import Types
+
 import qualified Data.Tree as Tree
 import Data.List
 import Data.Maybe
-import qualified Data.Set as S
-import qualified Data.Map as M
-import Control.Monad
+import Control.Monad.Identity
 
 
-toProdAndSymbolsTagged ::
-	productionTag ->
-		GroupedGrammarTagged symbolTag -> GroupedGrammar_ProdAndSymbolsTagged productionTag symbolTag
-toProdAndSymbolsTagged defTag =
-	fmap $ tagged defTag
+type TransformationMonadT m a =
+	ExceptT String m a
+
+type TransformationMonad a = TransformationMonadT Identity a
 
 applyTransformation ::
-	Transformation ->
-	GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag]-> Maybe (GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag])
+	MonadLog m =>
+	Transformation
+	-> GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag]
+	-> TransformationMonadT m (GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag])
 applyTransformation t g' =
+	((doLog $ concat $ ["applying ", pretty t]) >>) $
+	flip (applyTransformationImpl prodTag_empty) g' $ 
 		case t of
 			Annotate info ->
 				case info of
 					AnnotateWithLoops -> 
-						flip (applyTransformationImpl prodTag_empty) g' $ \g prodTags graph ->
+						\g prodTags graph ->
 							do
-								startSym <- fmap prod_left $ listToMaybe $ fromGrammar g
-								newGrammar <- findLoops startSym graph
+								startSym <-
+									maybe (throwError "no start symbol found") return $
+									fmap prod_left $ listToMaybe $ fromGrammar g
+								newGrammar <-
+									maybe (throwError "no start symbol found") return $
+									findLoops startSym graph
 								return $
 									GroupedGrammar_SeparateProdTags {
 										ggSeparateProdTags_grammar = g `intersectTaggedGrammars` newGrammar,
 										ggSeparateProdTags_ruleAnnotations = prodTags
 									}
 					AnnotateWithFirstSet ->
-						(Just . fromSeparateProdTags prodTag_empty . conv annotateWithFirstSets . toSeparateProdTags) g'
-						where
-							conv :: 
-								Eq symbolTag
-								=> (GroupedGrammar_SeparateProdTags FirstSet symbolTag -> GroupedGrammar_SeparateProdTags FirstSet symbolTag)
-								-> GroupedGrammar_SeparateProdTags ProductionTag symbolTag -> GroupedGrammar_SeparateProdTags ProductionTag symbolTag
-							conv f g =
-								let originalProdTags = ggSeparateProdTags_ruleAnnotations g
-								in
-									rejoinWithOriginalProdTags originalProdTags $
-									f $
-									(ggSeparateProdTags_mapToRuleAnnotations $ M.mapMaybe $ const $ Just $ S.empty) g
-									where
-										rejoinWithOriginalProdTags origAnn =
-											ggSeparateProdTags_mapToRuleAnnotations $
-											M.mapMaybeWithKey $
-											\var set ->
-												let oldAnn = fromMaybe (error "rejoinWithOriginalProdTags error") $ M.lookup var origAnn
-												in
-													Just $
-													(prodTag_mapToFirstSet $ const $ Just set) $
-													oldAnn
+						\g _ _ ->
+							return $
+								GroupedGrammar_SeparateProdTags {
+									ggSeparateProdTags_grammar = g,
+									ggSeparateProdTags_ruleAnnotations =
+										annotateWithFirstSets (fromTaggedGrammar g)
+								}
 			LeftFactor varScheme ->
-				flip (applyTransformationImpl prodTag_empty) g' $ leftFactor varScheme
+				leftFactor varScheme
 			LeftFactor_Full varCond varScheme ->
-				flip (applyTransformationImpl prodTag_empty) g' $ leftFactor_full (varCondFromDescr varCond) varScheme
+				leftFactor_full (varCondFromDescr varCond) varScheme
 			ElimLeftRecur varScheme ->
-				flip (applyTransformationImpl prodTag_empty) g' $ elimLeftRecur varScheme
+				elimLeftRecur varScheme
 			ElimLeftRecurNoEpsilon varScheme ->
-				flip (applyTransformationImpl prodTag_empty) g' $ elimLeftRecurNoEpsilon varScheme
+				elimLeftRecurNoEpsilon varScheme
 			ElimLeftRecur_Full varCond varScheme ->
-				flip (applyTransformationImpl prodTag_empty) g' $ elimLeftRecur_full (varCondFromDescr varCond) varScheme
+				elimLeftRecur_full (varCondFromDescr varCond) varScheme
 			ElimLeftRecurNoEpsilon_Full varCond varScheme ->
-				flip (applyTransformationImpl prodTag_empty) g' $ elimLeftRecurNoEpsilon_full (varCondFromDescr varCond) varScheme
+				elimLeftRecurNoEpsilon_full (varCondFromDescr varCond) varScheme
 			BreakRules maxLength varScheme ->
-				flip (applyTransformationImpl prodTag_empty) g' $ breakProds varScheme maxLength
+				breakProds varScheme maxLength
 			Unfold varCondDescr ->
-				flip (applyTransformationImpl prodTag_empty) g' $ unfold $ varCondFromDescr varCondDescr
+				unfold $ varCondFromDescr varCondDescr
 			ElimEpsilon ->
-				flip (applyTransformationImpl prodTag_empty) g' $ elimEpsilon
+				elimEpsilon
 			InsertProductions params ->
-				flip (applyTransformationImpl prodTag_empty) g' $ insertProds params
+				insertProds params
 			DeleteProductions condDescr ->
-				flip (applyTransformationImpl prodTag_empty) g' $ deleteProds $ varCondFromDescr condDescr
+				deleteProds $ varCondFromDescr condDescr
 			AddActionSymbols counterInit ->
-				flip (applyTransformationImpl prodTag_empty) g' $ addActionSymbols counterInit
+				addActionSymbols counterInit
 			SubGrammar var ->
-				flip (applyTransformationImpl prodTag_empty) g' $
 				\g prodTags graph ->
 					do
 						subGrammar <- groupedGrammarSub [var] graph
@@ -118,17 +112,16 @@ applyTransformation t g' =
 								ggSeparateProdTags_ruleAnnotations = prodTags
 							}
 			FindDeadEnds ->
-				flip (applyTransformationImpl prodTag_empty) g' $ findDeadEnds
+				findDeadEnds
 			UnusedRules ->
-				flip (applyTransformationImpl prodTag_empty) g' $
 				\g prodTags graph ->
-					let
-						used =
-							fromMaybe (Grammar []) $
+					do
+						used <-
 							do
-								startSym <- fmap prod_left $ listToMaybe $ fromGrammar g
+								startSym <-
+									maybe (throwError "no start symbol found") return $
+									fmap prod_left $ listToMaybe $ fromGrammar g
 								(groupedGrammarSub [startSym] graph)
-					in
 						return $
 							GroupedGrammar_SeparateProdTags {
 								ggSeparateProdTags_grammar =
@@ -139,8 +132,12 @@ applyTransformation t g' =
 								ggSeparateProdTags_ruleAnnotations = prodTags
 							}
 
-groupedGrammarSub :: [Var] -> GrammarGraph symbolTag -> Maybe (GroupedGrammarTagged symbolTag)
+groupedGrammarSub ::
+	MonadError String m =>
+	[Var] -> GrammarGraph symbolTag
+	-> m (GroupedGrammarTagged symbolTag)
 groupedGrammarSub vars graph =
+	maybe (throwError $ "error while calculating subGrammar") return $
 	fmap (
 		Grammar .
 		join .
@@ -148,13 +145,10 @@ groupedGrammarSub vars graph =
 	) $
 	spanningForest (map Right vars) graph
 
-type TransformationImplType prodTag symbolTag m =
-	GroupedGrammarTagged symbolTag -> M.Map Var prodTag -> Graph Symbol (GroupedProductionTagged symbolTag) -> m (GroupedGrammar_SeparateProdTags prodTag symbolTag)
-
 applyTransformationImpl ::
 	Monad m => 
 	prodTag ->
-	TransformationImplType prodTag symbolTag m
+	TransformationImplTypeM prodTag symbolTag m
 	-> GroupedGrammar_ProdAndSymbolsTagged prodTag symbolTag -> m (GroupedGrammar_ProdAndSymbolsTagged prodTag symbolTag)
 applyTransformationImpl defProdTag f grammarWithAnn =
 	let
