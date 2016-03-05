@@ -77,64 +77,51 @@ applyAlgorithmUsingProductionsM algorithm grammar =
 					.
 					map groupedProd_removeSymbolTags
 
-{-
-applyAlgorithmUsingProductions ::
-	([ProductionGen Var [[Symbol]]] -> [ProductionGen Var [[Symbol]]])
-	-> GroupedGrammarTagged [SymbolTag]
-	-> M.Map Var prodTag0
-	-> Graph Symbol (GroupedProductionTagged [SymbolTag])
-	-> Maybe (GroupedGrammar_SeparateProdTags prodTag0 [SymbolTag])
-applyAlgorithmUsingProductions f =
-	applyAlgorithmUsingProductionsM'
-		runIdentity
-		(return . f)
-
-applyAlgorithmUsingProductionsM scheme f grammar =
-	applyAlgorithmUsingProductionsM'
-		(flip (runVarNameMonad scheme) (fromTaggedGrammar grammar))
-		f
-		grammar
-
-
-applyAlgorithmUsingProductionsM' ::
-	Monad m =>
-	(forall a . m a -> a) ->
-	([ProductionGen Var [[Symbol]]] -> m [ProductionGen Var [[Symbol]]])
-	-> GroupedGrammarTagged [SymbolTag]
-	-> M.Map Var prodTag
-	-> Graph Symbol (GroupedProductionTagged [SymbolTag])
-	-> Maybe (GroupedGrammar_SeparateProdTags prodTag [SymbolTag])
-applyAlgorithmUsingProductionsM' runMonad algorithm grammar _ _ =
-	return $
-	ggSeparateProdTags_mapToGrammar calcGrammar $
-	GroupedGrammar_SeparateProdTags grammar M.empty
-	where
-		calcGrammar :: forall tag . GroupedGrammarTagged [tag] -> GroupedGrammarTagged [tag]
-		calcGrammar =
-			grammar_mapToProductions $
-			withUntaggedProductions $
-			(
-				runMonad
-				--flip (runVarNameMonad scheme) (fromTaggedGrammar grammar)
-				.
-				algorithm 
-			)
-			where
-				withUntaggedProductions f =
-					map (prod_mapToRight $ map $ map $ tagged [])
-					.
-					f
-					.
-					map (prod_mapToRight $ map $ map $ value)
--}
-
 type ProcessedAndRemaining a = ([a],[a])
+
+untilM cond =
+	untilExtM (\_ x -> cond x)
+
+untilExt cond f =
+	runIdentity . untilExtM cond (return . f)
+
+untilExtM ::
+	Monad m =>
+	(a -> a -> Bool)
+	-> (a -> m a)
+	-> a -> m a
+untilExtM cond f x =
+	do
+		new <- f x
+		if cond x new
+			then return $ new
+			else untilExtM cond f new
+
+untilExt_M cond f =
+	runIdentity . untilExtM cond (return . f)
+
+untilExtM_M ::
+	Monad m =>
+	(a -> a -> m Bool)
+	-> (a -> m a)
+	-> a -> m a
+untilExtM_M cond f x =
+	do
+		new <- f x
+		condRes <- cond x new
+		if condRes
+			then return $ new
+			else untilExtM_M cond f new
 
 processAll ::
 	(ProcessedAndRemaining a ->  a -> ProcessedAndRemaining a) -> [a] -> [a]
 processAll f =
 	runIdentity .
 	processAllM (\processedAndRemaining current-> return $ f processedAndRemaining current)
+
+processAllOnce f =
+	runIdentity .
+	processAllOnceM (return . f)
 
 processAllOnceM ::
 	Monad m =>
@@ -167,6 +154,8 @@ processAllM f l =
 		look for rules like
 			X1 -> ...
 		unfold them into prod.
+	
+		! NOTE: if the result is the empty list, no productions have been found to replace X1...
 -}
 maybeUnfold ::
 	(Var -> Bool)

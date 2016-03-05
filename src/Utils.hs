@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 module Utils(
 	module Utils,
 	module Control.Monad,
@@ -14,6 +15,9 @@ unlines = List.intercalate "\n"
 
 mapFst f (a, b) = (f a, b)
 mapSnd f (a, b) = (a, f b)
+
+mapFstM f (a, b) = fmap (, b) $ f a
+mapSndM f (a, b) = fmap (a, ) $ f b
 
 isLeft (Right _) = False
 isLeft (Left _) = True

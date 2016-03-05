@@ -11,23 +11,63 @@ import Utils
 import Types
 
 import Data.List hiding( unlines )
---import Control.Monad
+import Data.Maybe
 import Prelude hiding( unlines )
 
-import qualified Debug.Trace as Trace
+--import qualified Debug.Trace as Trace
 
-leftFactor_full ::
-	(MonadLog m, MonadError String m) =>
-	(Var -> Bool)
-	-> VarScheme
-	-> TransformationImplTypeM prodTag [SymbolTag] m
+
 leftFactor_full varCond varScheme grammar _ _ =
 	runVarNameMonadT varScheme (grammar_mapToProductions (map $ groupedProd_removeSymbolTags) $ grammar) $
 	flip applyAlgorithmUsingProductionsM grammar $
-	processAll_LeftFactoringM $
-	\ctxt x ->
-		fmap (\p -> toGroupedProductions $ maybeUnfold varCond (uncurry (++) $ ctxt) =<< productionsFromGroupedProd =<< p) $
-		leftFactoringStep x
+	processAllOnceM $
+	\_ x -> ((lift $ doLog $ unlines $ ["leftFactorFull starting with", pretty x]) >>) $
+			fmap (uncurry (++)) $
+			untilExtM_M stopCondition (leftFactorStep_full varCond allProds)
+			([],[x])
+	where
+		stopCondition lastState@(_, oldBlock) currentState@(_, newBlock) =
+			do
+				let
+					emergencyCriterium =
+						let
+							lengthSum = 
+								length . join . join . map prod_right
+						in
+							lengthSum oldBlock <= lengthSum newBlock
+				when emergencyCriterium $ lift $ doLog $ "stopped because of emergency criterium"
+				return $
+					newBlock == []
+					||
+					emergencyCriterium
+		allProds =
+			fromGrammar $ fromTaggedGrammar $ grammar
+
+leftFactorStep_full ::
+	MonadLog m => 
+	(Var -> Bool)
+	-> [GroupedProduction]
+	-> ([GroupedProduction], [GroupedProduction])
+	-> VarNameMonadT m ([GroupedProduction], [GroupedProduction])
+leftFactorStep_full cond allOtherProds input =
+		((lift $ doLog $ unlines $ ["leftFactorStep_full"] ++ map pretty (snd input)) >>) $
+		(fmap (mapSnd $ maybeUnfold') . leftFactoringStep) input
+	where
+		maybeUnfold' :: [GroupedProduction] -> [GroupedProduction]
+		maybeUnfold' prods =
+			join $
+			flip mapM prods $
+				toGroupedProductions
+				.
+				((
+					\prod -> case maybeUnfold cond allOtherProds prod of
+						[] -> [prod]
+						newProds -> newProds
+				)
+				<=<
+				productionsFromGroupedProd
+				)
+
 
 leftFactor ::
 	(MonadLog m, MonadError String m) =>
@@ -36,54 +76,71 @@ leftFactor ::
 leftFactor varScheme grammar _ _ =
 	runVarNameMonadT varScheme (grammar_mapToProductions (map $ groupedProd_removeSymbolTags) $ grammar) $
 	flip applyAlgorithmUsingProductionsM grammar $
-	processAll_LeftFactoringM $
-	\_ x -> leftFactoringStep x
-
-processAll_LeftFactoringM ::
-	(Eq a, Monad m) =>
-	(ProcessedAndRemaining a -> a -> m [a])
-	-> [a] -> m [a]
-processAll_LeftFactoringM f =
-	processAllM $
-	\ctxt x -> f ctxt x >>=
-		\new ->
-			return $
-			case new of
-				new
-					| new == [x] ->
-						(new, []) --
-					| otherwise ->
-						([], new) -- process again...
+	--processAll_LeftFactoringM $
+	processAllOnceM $
+		\_ x ->
+			fmap (uncurry (++)) $
+			untilExtM (==) leftFactoringStep
+			([],[x])
 
 leftFactoringStep ::
+	MonadLog m => 
+	([GroupedProduction], [GroupedProduction])
+	-> VarNameMonadT m ([GroupedProduction], [GroupedProduction])
+leftFactoringStep (oldBlock, newBlock) =
+	do
+		(newProds, nextBlock) <-
+			fmap (
+				mapSnd join
+				.
+				unzip
+			) $
+			mapM leftFactoringStep' newBlock
+		return $
+			(oldBlock ++ newProds, nextBlock)
+
+leftFactoringStep' ::
 	forall m .
 	MonadLog m =>
-	GroupedProduction -> VarNameMonadT m [GroupedProduction]
-leftFactoringStep prod =
-	-- (lift . logIfChanged prod =<<) $
-	fmap (joinProductions . join) $
+	GroupedProduction -> VarNameMonadT m (GroupedProduction, [GroupedProduction])
+leftFactoringStep' prod =
+	fmap (temp $ prod_left prod) $
 	mapM (
-		calcNewProd
-		. (mapSnd $ map $ \x -> if null x then [Left epsilon] else x)
-	) $
+		calcNewProd 
+		.
+		(mapSnd $ map $ \x -> if null x then [Left epsilon] else x)
+	)$
 	groupByPrefix $
-	(prod_right prod :: [[Symbol]])
+	prod_right prod
 	where
-		calcNewProd :: ([Symbol], [[Symbol]]) -> VarNameMonadT m [ProductionGen Var [[Symbol]]]
+		calcNewProd :: ([Symbol], [[Symbol]]) -> VarNameMonadT m ([Symbol], Maybe GroupedProduction)
 		calcNewProd rules =
 			case rules of
 				(pref, rests) | (all $ all (==Left epsilon)) rests ->
-				-- (pref, [[]]) ->
-					return $ return $ Production (prod_left prod) [pref]
+					return $
+					( pref
+					, Nothing
+					)
 				(pref, rests) ->
 					do
-						newVar <- getSimilarVar $ prod_left prod
+						newVar <- getSimilarVar (prod_left prod)
 						return $
-							Production (prod_left prod) [pref ++ [Right newVar]]
-							: [Production newVar rests]
+							( pref ++ [Right newVar]
+							, Just $ Production newVar rests
+							)
+		temp ::
+			Var
+			-> [([Symbol], Maybe GroupedProduction)]
+			-> (GroupedProduction, [GroupedProduction])
+		temp left =
+			mapSnd catMaybes
+			.
+			mapFst (Production left)
+			.
+			unzip
 
 joinProductions ::
-	[ProductionGen Var [[Symbol]]] -> [GroupedProduction]
+	[GroupedProduction] -> [GroupedProduction]
 joinProductions =
 	map join_ . groupBy (\a b -> prod_left a == prod_left b) . sortOn prod_left
 	where
@@ -105,24 +162,3 @@ logIfChanged old new =
 				]
 			)
 		return $ new
-
-traceIfChanged :: GroupedProduction -> [GroupedProduction] -> [GroupedProduction]
-traceIfChanged old new =
-	(
-		--if [prod_mapToRight (groupByPrefix) old] /= new
-		if length new /= 1
-		--if [old] /= new
-		then
-			Trace.trace (
-				concat $
-				[ "expanded:\n\""
-				, pretty old
-				, "\"\nto \n\""
-				, unlines $ map pretty new
-				, "\""
-				]
-			)
-		else
-			id
-	)
-	new
