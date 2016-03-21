@@ -166,6 +166,8 @@ instance FromPretty Transformation where
 							varCond_negate = doNegate,
 							varCond_regex = regex
 						}
+			("removeDoubleProds", []) ->
+				return $ RemoveDoubleProds
 			("addActionSymbols",[counterInit]) ->
 				AddActionSymbols <$>
 					readEither counterInit

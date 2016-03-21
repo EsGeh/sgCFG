@@ -10,9 +10,9 @@ import Grammar.Types
 import Utils
 import Types
 
-import Data.List hiding( unlines )
+import Data.List --hiding( unlines )
 import Data.Maybe
-import Prelude hiding( unlines )
+-- import Prelude hiding( unlines )
 
 --import qualified Debug.Trace as Trace
 
@@ -26,7 +26,7 @@ leftFactor_full varCond varScheme grammar _ _ =
 			untilExtM_M stopCondition (leftFactorStep_full varCond allProds)
 			([],[x])
 	where
-		stopCondition lastState@(_, oldBlock) currentState@(_, newBlock) =
+		stopCondition (_, oldBlock) (_, newBlock) =
 			do
 				let
 					emergencyCriterium =

@@ -54,6 +54,7 @@ usageString progName =
 		, "  elimEpsilon()"
 		, "  insert(start|end,prodInDefaultSyntax)"
 		, "  delete(negate,regex)"
+		, "  removeDoubleProds()"
 		, "  addActionSymbols(counterInit)"
 		, "  subGrammar(Var)"
 		, "  unused()"

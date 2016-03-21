@@ -11,7 +11,7 @@ import Control.Monad.Except
 import Control.Monad
 
 
-unlines = List.intercalate "\n"
+--unlines = List.intercalate "\n"
 
 mapFst f (a, b) = (f a, b)
 mapSnd f (a, b) = (a, f b)
@@ -132,3 +132,12 @@ repeatTillNotChanging :: Eq a => (a -> a) -> a -> a
 repeatTillNotChanging f x
 	| f x == x = x
 	| otherwise = repeatTillNotChanging f (f x)
+
+repeatTillNotChangingM :: (Monad m, Eq a) => (a -> m a) -> a -> m a
+repeatTillNotChangingM f x =
+	do
+		new <- f x
+		if new == x
+		then return $ x
+		else
+			repeatTillNotChangingM f new

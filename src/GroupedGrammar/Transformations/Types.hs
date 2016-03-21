@@ -29,6 +29,7 @@ data Transformation
 	| InsertProductions InsertProductionsParams
 	| DeleteProductions VarCondition
 	| AddActionSymbols Int
+	| RemoveDoubleProds
 	| SubGrammar SubGrammarInfo
 	| UnusedRules
 	| FindDeadEnds
@@ -218,6 +219,8 @@ instance Pretty Transformation where
 			DeleteProductions varCondition ->
 				concat $
 				["delete(", pretty varCondition, ")"]
+			RemoveDoubleProds ->
+				"removeDoubleProds()"
 			AddActionSymbols startIndex ->
 				concat $
 				["addActionSymbols(", show startIndex, ")"]

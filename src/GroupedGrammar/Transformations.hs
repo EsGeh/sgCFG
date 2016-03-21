@@ -25,6 +25,7 @@ import GroupedGrammar.Transformations.ElimEpsilon
 import GroupedGrammar.Transformations.AddProds
 import GroupedGrammar.Transformations.DeleteProds
 import GroupedGrammar.Transformations.AddActionSymbols
+import GroupedGrammar.Transformations.RemoveDoubleProds
 
 import GroupedGrammar.Transformations.Utils
 import GroupedGrammar.Transformations.Types
@@ -100,6 +101,8 @@ applyTransformation t g' =
 				insertProds params
 			DeleteProductions condDescr ->
 				deleteProds $ varCondFromDescr condDescr
+			RemoveDoubleProds ->
+				removeDoubleProds
 			AddActionSymbols counterInit ->
 				addActionSymbols counterInit
 			SubGrammar var ->
