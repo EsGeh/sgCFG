@@ -1,5 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TupleSections #-}
 module GroupedGrammar.Transformations.LeftFactor where
 
 import GroupedGrammar.Transformations.VarNameMonad
@@ -10,63 +11,12 @@ import Grammar.Types
 import Utils
 import Types
 
+import Control.Monad.Writer
 import Data.List --hiding( unlines )
 import Data.Maybe
 -- import Prelude hiding( unlines )
 
 --import qualified Debug.Trace as Trace
-
-
-leftFactor_full varCond varScheme grammar _ _ =
-	runVarNameMonadT varScheme (grammar_mapToProductions (map $ groupedProd_removeSymbolTags) $ grammar) $
-	flip applyAlgorithmUsingProductionsM grammar $
-	processAllOnceM $
-	\_ x -> ((lift $ doLog $ unlines $ ["leftFactorFull starting with", pretty x]) >>) $
-			fmap (uncurry (++)) $
-			untilExtM_M stopCondition (leftFactorStep_full varCond allProds)
-			([],[x])
-	where
-		stopCondition (_, oldBlock) (_, newBlock) =
-			do
-				let
-					emergencyCriterium =
-						let
-							lengthSum = 
-								length . join . join . map prod_right
-						in
-							lengthSum oldBlock <= lengthSum newBlock
-				when emergencyCriterium $ lift $ doLog $ "stopped because of emergency criterium"
-				return $
-					newBlock == []
-					||
-					emergencyCriterium
-		allProds =
-			fromGrammar $ fromTaggedGrammar $ grammar
-
-leftFactorStep_full ::
-	MonadLog m => 
-	(Var -> Bool)
-	-> [GroupedProduction]
-	-> ([GroupedProduction], [GroupedProduction])
-	-> VarNameMonadT m ([GroupedProduction], [GroupedProduction])
-leftFactorStep_full cond allOtherProds input =
-		((lift $ doLog $ unlines $ ["leftFactorStep_full"] ++ map pretty (snd input)) >>) $
-		(fmap (mapSnd $ maybeUnfold') . leftFactoringStep) input
-	where
-		maybeUnfold' :: [GroupedProduction] -> [GroupedProduction]
-		maybeUnfold' prods =
-			join $
-			flip mapM prods $
-				toGroupedProductions
-				.
-				((
-					\prod -> case maybeUnfold cond allOtherProds prod of
-						[] -> [prod]
-						newProds -> newProds
-				)
-				<=<
-				productionsFromGroupedProd
-				)
 
 
 leftFactor ::
@@ -95,15 +45,154 @@ leftFactoringStep (oldBlock, newBlock) =
 				.
 				unzip
 			) $
-			mapM leftFactoringStep' newBlock
+			mapM leftFactorProd newBlock
 		return $
 			(oldBlock ++ newProds, nextBlock)
 
-leftFactoringStep' ::
+leftFactor_full varCond varScheme grammar _ _ =
+	runVarNameMonadT varScheme (grammar_mapToProductions (map $ groupedProd_removeSymbolTags) $ grammar) $
+	flip applyAlgorithmUsingProductionsM grammar $
+	processAllOnceM $
+	\_ prod ->
+		((lift $ doLog $ unlines $ ["leftFactorFull starting with", pretty prod]) >>) $
+		execWriterT $
+		untilM null (stepFull stopCondition step) =<<
+		(fmap (\x -> [Node x Nothing]) $ lift $ step prod)
+	where
+		stopCondition node =
+			length (pathFromNode node) > 2
+		{-
+		stopCondition (_, oldBlock) (_, newBlock) =
+			do
+				let
+					emergencyCriterium =
+						let
+							lengthSum = 
+								length . join . join . map prod_right
+						in
+							lengthSum oldBlock <= lengthSum newBlock
+				when emergencyCriterium $ lift $ doLog $ "stopped because of emergency criterium"
+				return $
+					newBlock == []
+					||
+					emergencyCriterium
+		-}
+		allProds =
+			fromGrammar $ fromTaggedGrammar $ grammar
+		step :: 
+			MonadLog m => 
+			GroupedProduction
+			-> VarNameMonadT m (GroupedProduction, [GroupedProduction])
+		step =
+			leftFactorAndUnfold varCond allProds
+
+data Node prod = Node {
+	node_data :: (prod, [prod]),
+	node_parent:: Maybe (Node prod)
+}
+
+pathFromNode n =
+	node_data n :
+	(maybe [] pathFromNode (node_parent n))
+
+instance MonadLog m => MonadLog (VarNameMonadT m) where
+	doLog = lift . doLog
+
+stepFull ::
+	forall m prod .
+	(MonadLog m, Pretty prod) =>
+	(Node prod -> Bool)
+	-> (prod -> m (prod, [prod]))
+	-> [Node prod]
+	-> WriterT [prod] m [Node prod]
+stepFull stopCond f nodes' =
+	let
+		(nodes, abandonedNodes) =
+			partition (not . stopCond) $ nodes'
+	in
+		do
+			lift $ doLog $ concat ["leftFactoring step, ", show (length nodes'), "nodes"]
+			{-
+			lift $ doLog $
+				unlines $
+				["leftFactoring step, ", show (length nodes'), "nodes:"]
+				++
+				map (showState . node_data) nodes'
+			-}
+			unless (null abandonedNodes) $
+				lift $ doLog $ unlines $ map showStopNode $ abandonedNodes
+			ret <- fmap join $
+				flip mapM nodes $
+					\node ->
+						do
+							lift $ doLog $ "n th subNode"
+							tell $ [fst $ node_data node]
+							(lift . nextNodes f) node
+			return $ ret
+	where
+		showStopNode node =
+			unlines $
+			[ "stopped full left factoring after the following steps:"
+			, showNode node
+			]
+		showNode n =
+			unlines $
+			map (("step: -------------------------\n"++) . showState) $
+			pathFromNode n
+		showState (prod, continuations) =
+			unlines $
+			[ "\t" ++ pretty prod
+			, "continuations:"
+			]
+			++
+			(map ("\t"++) $ map pretty continuations)
+
+nextNodes ::
+	forall m prod .
+	Monad m =>
+	(prod -> m (prod, [prod]))
+	-> Node prod
+	-> m [Node prod]
+nextNodes f node =
+	let
+		(_, conts) = node_data node
+	in
+		fmap (map $ \d -> Node d (Just node)) $
+		mapM f conts
+
+leftFactorAndUnfold ::
+	MonadLog m => 
+	(Var -> Bool)
+	-> [GroupedProduction]
+	-> GroupedProduction
+	-> VarNameMonadT m (GroupedProduction, [GroupedProduction])
+leftFactorAndUnfold cond allOtherProds input =
+		--((lift $ doLog $ unlines $ ["leftFactorAndUnfold"] ++ [pretty input]) >>) $
+		fmap (mapSnd $ maybeUnfold') $
+		leftFactorProd $
+		input
+	where
+		maybeUnfold' :: [GroupedProduction] -> [GroupedProduction]
+		maybeUnfold' prods =
+			join $
+			flip mapM prods $
+				toGroupedProductions
+				.
+				((
+					\prod -> case maybeUnfold cond allOtherProds prod of
+						[] -> [prod]
+						newProds -> newProds
+				)
+				<=<
+				productionsFromGroupedProd
+				)
+
+leftFactorProd ::
 	forall m .
 	MonadLog m =>
-	GroupedProduction -> VarNameMonadT m (GroupedProduction, [GroupedProduction])
-leftFactoringStep' prod =
+	GroupedProduction
+	-> VarNameMonadT m (GroupedProduction, [GroupedProduction]) -- new production and a list of "continuations"
+leftFactorProd prod =
 	fmap (temp $ prod_left prod) $
 	mapM (
 		calcNewProd 
@@ -132,12 +221,10 @@ leftFactoringStep' prod =
 			Var
 			-> [([Symbol], Maybe GroupedProduction)]
 			-> (GroupedProduction, [GroupedProduction])
-		temp left =
-			mapSnd catMaybes
-			.
-			mapFst (Production left)
-			.
-			unzip
+		temp left input =
+			( Production left $ map fst input
+			, catMaybes $ map snd $ input
+			)
 
 joinProductions ::
 	[GroupedProduction] -> [GroupedProduction]

@@ -24,7 +24,7 @@ type VarNameMonad a = VarNameMonadT Identity a
 newtype VarNameMonadT m a = VarNameMonad {
 	fromVarNameMonad :: StateT VarNameState m a
 }
-	deriving( Monad, Applicative, Functor, MonadTrans)
+	deriving( Monad, Applicative, Functor, MonadTrans )
 
 data VarNameState = VarNameState {
 	fromVarNameState :: S.Set Var,
