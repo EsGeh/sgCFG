@@ -11,7 +11,8 @@ import Grammar.Types
 import Utils
 import Types
 
-import Control.Monad.Writer
+import Control.Monad.State
+import qualified Data.Set as S
 import Data.List --hiding( unlines )
 import Data.Maybe
 -- import Prelude hiding( unlines )
@@ -49,34 +50,108 @@ leftFactoringStep (oldBlock, newBlock) =
 		return $
 			(oldBlock ++ newProds, nextBlock)
 
+data FullLeftFState = FullLeftFState {
+	fullLeftFState_it :: Int,
+	fullLeftFState_stopAtTheseProds :: StopAtSet
+}
+type StopAtSet = S.Set GroupedProduction
+
+fullLeftFState_mapToIt f s = s{ fullLeftFState_it = f (fullLeftFState_it s) }
+fullLeftFState_mapToStopAt f s = s{ fullLeftFState_stopAtTheseProds = f (fullLeftFState_stopAtTheseProds s) }
+
+fullLeftFState_default = FullLeftFState 0 S.empty
+
+getIt :: MonadState FullLeftFState m => m Int
+getIt = fmap fullLeftFState_it $ get
+incIt :: MonadState FullLeftFState m => m ()
+incIt = modify $ fullLeftFState_mapToIt (+1)
+getStopAt :: MonadState FullLeftFState m => m StopAtSet
+getStopAt = fmap fullLeftFState_stopAtTheseProds $ get
+modifyStopAt :: MonadState FullLeftFState m =>(StopAtSet -> StopAtSet) -> m ()
+modifyStopAt f = modify $ fullLeftFState_mapToStopAt f
+
 leftFactor_full varCond varScheme grammar _ _ =
 	runVarNameMonadT varScheme (grammar_mapToProductions (map $ groupedProd_removeSymbolTags) $ grammar) $
 	flip applyAlgorithmUsingProductionsM grammar $
-	processAllOnceM $
-	\_ prod ->
-		((lift $ doLog $ unlines $ ["leftFactorFull starting with", pretty prod]) >>) $
-		execWriterT $
-		untilM null (stepFull stopCondition step) =<<
-		(fmap (\x -> [Node x Nothing]) $ lift $ step prod)
-	where
-		stopCondition node =
-			length (pathFromNode node) > 2
-		{-
-		stopCondition (_, oldBlock) (_, newBlock) =
+	{-
+			((lift $ lift $ doLog $ unlines $ ["iteration"]) >>) $
+			lift $
+	-}
+	flip evalStateT fullLeftFState_default .
+	(
+	untilExtM (==) $
+		\prods ->
 			do
-				let
-					emergencyCriterium =
-						let
-							lengthSum = 
-								length . join . join . map prod_right
-						in
-							lengthSum oldBlock <= lengthSum newBlock
-				when emergencyCriterium $ lift $ doLog $ "stopped because of emergency criterium"
-				return $
-					newBlock == []
-					||
-					emergencyCriterium
-		-}
+				it_index <- getIt
+				lift $ doLog $ "iteration " ++ show it_index
+				incIt
+				--(get >>= (\it_index -> lift $ lift $ doLog $ "iteration " ++ show it_index) >> modify (+1) >>) $
+				flip processAllOnceM prods $
+					\_ prod ->
+						--((lift $ doLog $ unlines $ ["leftFactorFull starting with", pretty $ prod_left prod]) >>) $
+						do
+							stopAtProds <- getStopAt
+							if prod `S.member` stopAtProds
+							then return [prod]
+							else
+								do
+									(newProd, continuations) <- lift $ (leftFactorAndUnfold varCond allProds) prod
+									let stopAtProds =
+										filter((>=lengthSum prod) . lengthSum) continuations
+									{-
+									unless (null $ stopAtProds) $
+										lift $ doLog $
+											unlines $
+											[ "adding "]
+											++
+											map (("\t"++) . pretty . prod_left) stopAtProds
+											++
+											["to the list of skipped prods"]
+									-}
+									modifyStopAt $ (`S.union` S.fromList stopAtProds)
+									--if (sum $ map lengthSum $ continuations) < lengthSum prod
+									--if all ((<lengthSum prod) . lengthSum) continuations
+									when (newProd/=prod) $
+										lift $ doLog $
+											unlines $
+											[ "splitting"
+											, "\t" ++ pretty (prod_left prod)
+											, "into"
+											, "\t" ++ pretty (prod_left newProd)
+											, "and"
+											]
+											++
+											map (("\t"++) . pretty . prod_left) continuations
+									return $ newProd : continuations
+									{-
+									if it_index < 3
+									then
+										do
+											when (newProd/=prod) $
+												lift $ doLog $
+													unlines $
+													[ "leftFactorFull splitting"
+													, "\t" ++ pretty prod
+													, "into"
+													, "\t" ++ pretty newProd
+													, "and"
+													]
+													++
+													map (("\t"++) . pretty) continuations
+											return $ newProd : continuations
+									else
+										(lift $ doLog $ "skipping " ++ pretty (prod_left prod)) >>
+										return [prod]
+									-}
+			{-
+			(fullLeftF stopCondition step []) $
+			prod
+			-}
+	)
+	where
+		stopCondition path =
+			length path == 1
+		lengthSum = length . join . prod_right
 		allProds =
 			fromGrammar $ fromTaggedGrammar $ grammar
 		step :: 
@@ -86,82 +161,58 @@ leftFactor_full varCond varScheme grammar _ _ =
 		step =
 			leftFactorAndUnfold varCond allProds
 
-data Node prod = Node {
-	node_data :: (prod, [prod]),
-	node_parent:: Maybe (Node prod)
-}
 
-pathFromNode n =
-	node_data n :
-	(maybe [] pathFromNode (node_parent n))
+--type Node prod = (prod, [prod])
+type Node = (GroupedProduction, [GroupedProduction])
+
+type Path = [Node]
+
+{-
+fullLeftF ::
+	MonadLog m =>
+	(Path-> Bool)
+	-> (GroupedProduction -> m Node)
+	-> Path
+	-> GroupedProduction
+	-> m [GroupedProduction]
+fullLeftF stopCond f path prod =
+	do
+		let shouldRecursionStop = stopCond $ path
+		currentNode@(newProd, conts) <- f prod
+		--doLog $ "fullLeftF: " ++ showState	currentNode
+		fmap (newProd:) $
+			if shouldRecursionStop
+			then
+				do
+					--doLog $ "stopping!"
+					{-
+					 doLog $
+						"stopping full left factoring with:" ++ showState currentNode
+					-}
+					return $ conts
+			else
+				dfs (currentNode:path) conts
+	where
+		dfs newPath l =
+			fmap join $
+			mapM (
+				\prod ->
+					fullLeftF stopCond f newPath $ prod
+			) l
+		showState (prod, continuations) =
+			unlines $
+			[ "\t" ++ pretty (prod_left prod)
+			, "continuations:"
+			]
+			++
+			(map ("\t"++) $ map (pretty . prod_left) continuations)
+-}
 
 instance MonadLog m => MonadLog (VarNameMonadT m) where
 	doLog = lift . doLog
 
-stepFull ::
-	forall m prod .
-	(MonadLog m, Pretty prod) =>
-	(Node prod -> Bool)
-	-> (prod -> m (prod, [prod]))
-	-> [Node prod]
-	-> WriterT [prod] m [Node prod]
-stepFull stopCond f nodes' =
-	let
-		(nodes, abandonedNodes) =
-			partition (not . stopCond) $ nodes'
-	in
-		do
-			lift $ doLog $ concat ["leftFactoring step, ", show (length nodes'), "nodes"]
-			{-
-			lift $ doLog $
-				unlines $
-				["leftFactoring step, ", show (length nodes'), "nodes:"]
-				++
-				map (showState . node_data) nodes'
-			-}
-			unless (null abandonedNodes) $
-				lift $ doLog $ unlines $ map showStopNode $ abandonedNodes
-			ret <- fmap join $
-				flip mapM nodes $
-					\node ->
-						do
-							lift $ doLog $ "n th subNode"
-							tell $ [fst $ node_data node]
-							(lift . nextNodes f) node
-			return $ ret
-	where
-		showStopNode node =
-			unlines $
-			[ "stopped full left factoring after the following steps:"
-			, showNode node
-			]
-		showNode n =
-			unlines $
-			map (("step: -------------------------\n"++) . showState) $
-			pathFromNode n
-		showState (prod, continuations) =
-			unlines $
-			[ "\t" ++ pretty prod
-			, "continuations:"
-			]
-			++
-			(map ("\t"++) $ map pretty continuations)
-
-nextNodes ::
-	forall m prod .
-	Monad m =>
-	(prod -> m (prod, [prod]))
-	-> Node prod
-	-> m [Node prod]
-nextNodes f node =
-	let
-		(_, conts) = node_data node
-	in
-		fmap (map $ \d -> Node d (Just node)) $
-		mapM f conts
-
 leftFactorAndUnfold ::
-	MonadLog m => 
+	Monad m => 
 	(Var -> Bool)
 	-> [GroupedProduction]
 	-> GroupedProduction
@@ -189,7 +240,7 @@ leftFactorAndUnfold cond allOtherProds input =
 
 leftFactorProd ::
 	forall m .
-	MonadLog m =>
+	Monad m =>
 	GroupedProduction
 	-> VarNameMonadT m (GroupedProduction, [GroupedProduction]) -- new production and a list of "continuations"
 leftFactorProd prod =
