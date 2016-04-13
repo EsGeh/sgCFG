@@ -96,9 +96,10 @@ instance FromPretty Transformation where
 				return $ Annotate $ AnnotateWithFirstSet
 			("leftFactor", [varScheme]) ->
 				fmap LeftFactor $ fromPretty varScheme
-			("leftFactor_full", [negate, regex, varScheme]) ->
+			("leftFactor_full", [whileCond, negate, regex, varScheme]) ->
 				LeftFactor_Full
-					<$> (
+					<$> fromPretty whileCond
+					<*> (
 						VarCondition <$>
 						isEqualOrEmpty "not" negate
 						<*> return regex

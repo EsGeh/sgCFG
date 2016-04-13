@@ -72,6 +72,7 @@ orderByPrefix = sortBy cmp
 groupByPrefix ::
 	(Eq a, Ord a) => [[a]] -> [([a], [[a]])]
 groupByPrefix l =
+	reverse $ -- <- quick and dirty solution
 	foldl conc init $
 	sortBy lexic l
 	where

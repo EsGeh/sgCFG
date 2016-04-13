@@ -81,8 +81,8 @@ applyTransformation t g' =
 								}
 			LeftFactor varScheme ->
 				leftFactor varScheme
-			LeftFactor_Full varCond varScheme ->
-				leftFactor_full (varCondFromDescr varCond) varScheme
+			LeftFactor_Full iterateWhile varCond varScheme ->
+				leftFactor_full iterateWhile (varCondFromDescr varCond) varScheme
 			ElimLeftRecur varScheme ->
 				elimLeftRecur varScheme
 			ElimLeftRecurNoEpsilon varScheme ->
