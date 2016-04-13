@@ -13,6 +13,7 @@ import Utils.Graph
 
 import Text.Regex.TDFA
 import qualified Data.Map as M
+import Text.Read
 
 
 data Transformation
@@ -22,7 +23,7 @@ data Transformation
 	| ElimLeftRecur_Full VarCondition VarScheme
 	| ElimLeftRecurNoEpsilon_Full VarCondition VarScheme
 	| LeftFactor VarScheme
-	| LeftFactor_Full VarCondition VarScheme
+	| LeftFactor_Full FullLeftFactorIterateWhile VarCondition VarScheme
 	| BreakRules Int VarScheme
 	| Unfold VarCondition
 	| ElimEpsilon
@@ -61,6 +62,11 @@ data VarCondition = VarCondition {
 	varCond_regex :: String
 }
 	deriving (Show)
+
+data FullLeftFactorIterateWhile
+	= IterateWhileDecreasing
+	| IterateNTimes Int
+	deriving( Show )
 
 data InsertProductionsParams = InsertProductionsParams {
 	insertProdsParams_productions :: [GroupedProduction],
@@ -192,9 +198,9 @@ instance Pretty Transformation where
 			LeftFactor varScheme ->
 				concat $
 				["leftFactor(", pretty varScheme, ")"]
-			LeftFactor_Full varCondition varScheme ->
+			LeftFactor_Full iterateWhile varCondition varScheme ->
 				concat $
-				["leftFactor_full(", pretty varCondition, ",", pretty varScheme, ")"]
+				["leftFactor_full(", pretty iterateWhile, pretty varCondition, ",", pretty varScheme, ")"]
 			BreakRules maxLength varScheme ->
 				concat $
 				["breakRules(", show maxLength, ",", pretty varScheme, ")"]
@@ -260,3 +266,18 @@ instance FromPretty VarScheme where
 			"%v%n" -> Right $ FromVar
 			"" -> Left $ "fromPretty error reading VarScheme"
 			str -> Right $ Const str
+
+instance Pretty FullLeftFactorIterateWhile where
+	pretty x =
+		case x of
+			IterateWhileDecreasing -> "whileDecreasing"
+			IterateNTimes count -> show count
+
+instance FromPretty FullLeftFactorIterateWhile where
+	fromPretty str =
+		case str of
+			"whileDecreasing" ->
+				return $ IterateWhileDecreasing
+			_ ->
+				maybe (Left "fromPretty error reading FullLeftFactorIterateWhile") Right $
+				IterateNTimes <$> readMaybe str
