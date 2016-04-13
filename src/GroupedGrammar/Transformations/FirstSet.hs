@@ -62,10 +62,8 @@ step prods =
 
 calcNewFirstSet :: (Var -> Maybe FirstSet) -> [Symbol] -> FirstSet
 calcNewFirstSet lookup right =
-	fromMaybe S.empty $
 	case right of
 		((Left t):xs) ->
-			return $
 			(
 				if t == epsilon
 				then
@@ -75,12 +73,15 @@ calcNewFirstSet lookup right =
 			) $
 			S.singleton t
 		((Right var):xs) ->
-			do
-				directFirst <- lookup var
+			let
+				directFirst =
+					fromMaybe (S.singleton epsilon) $
+					lookup var
+			in
 				if epsilon `S.member` directFirst
 					then
-						return $ directFirst `S.union` calcNewFirstSet lookup xs
+						directFirst `S.union` calcNewFirstSet lookup xs
 					else
-						return $ directFirst
-		_ ->
-			Nothing
+						directFirst
+		[] ->
+			S.singleton epsilon
