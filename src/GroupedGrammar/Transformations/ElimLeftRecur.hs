@@ -158,6 +158,18 @@ splitProduction left recursiveProductionRests otherProductions newVarName =
 		[[Left epsilon]]
 	]
 
+{-
+	A ->
+		A a1 | ... | A an
+		| b1 | ... | bk
+	=>
+	A ->
+		b1 | ... | bk
+		| b1 Z | ... | bk Z
+	Z ->
+		a1 | ... | an
+		| a1 Z | ... | an Z
+-}
 splitProductionNoEpsilon :: Var -> [[Symbol]] -> [[Symbol]] -> Var -> [GroupedProduction]
 splitProductionNoEpsilon left recursiveProductionRests otherProductions newVarName =
 	[ Production left $
@@ -165,5 +177,5 @@ splitProductionNoEpsilon left recursiveProductionRests otherProductions newVarNa
 		++
 		((++) <$> otherProductions <*> [[Right newVarName]])
 	, Production newVarName $
-		((++) <$> recursiveProductionRests <*> [[Right newVarName]])
+		((++) <$> recursiveProductionRests <*> [[], [Right newVarName]])
 	]
