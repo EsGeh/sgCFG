@@ -74,37 +74,37 @@ If you have a text file "file" containing your grammar, you can use sgCFG like t
 
 - Identity (no transformations), *default* output format
 
-    $ echo -e 'A -> A "a" | "a"' | stack exec -- sgCFG -i default -d default
-    A->
-      A "a"
-    A->
-      "a" 
+        $ echo -e 'A -> A "a" | "a"' | stack exec -- sgCFG -i default -d default
+        A->
+          A "a"
+        A->
+          "a" 
 
 - Identity (no transformations), *grouped* output format
 
-    $ echo -e 'A -> A "a" | "a"' | stack exec -- sgCFG -i default -g default
-    A ->
-       A "a"
-      |"a"
+        $ echo -e 'A -> A "a" | "a"' | stack exec -- sgCFG -i default -g default
+        A ->
+           A "a"
+          |"a"
 
 - Eliminate Left Recursion
 
-    $ echo -e 'A -> A "a" | "a"' | stack exec -- sgCFG -i default -g default -t 'elimLeftRec(%v%n)' 2>/dev/null
-    A ->
-       "a" A0
-    A0 ->
-       "a" A0
-      |""
+        $ echo -e 'A -> A "a" | "a"' | stack exec -- sgCFG -i default -g default -t 'elimLeftRec(%v%n)' 2>/dev/null
+        A ->
+           "a" A0
+        A0 ->
+           "a" A0
+          |""
 
 - Chaining multiple transformations: Eliminate Left Recursion > Eliminate Epsilon Rules:
 
-    $ echo -e 'A -> A "a" | "a"' | stack exec -- sgCFG -i default -g default -t 'elimLeftRec(%v%n)' -t 'elimEpsilon()' 2>/dev/null
-    A ->
-       "a" A0
-      |"a"
-    A0 ->
-       "a" A0
-      |"a 
+        $ echo -e 'A -> A "a" | "a"' | stack exec -- sgCFG -i default -g default -t 'elimLeftRec(%v%n)' -t 'elimEpsilon()' 2>/dev/null
+        A ->
+           "a" A0
+          |"a"
+        A0 ->
+           "a" A0
+          |"a 
 
 ## Bibliography
 
