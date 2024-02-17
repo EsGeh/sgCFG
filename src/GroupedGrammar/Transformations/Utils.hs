@@ -30,6 +30,7 @@ type TransformationImplTypeM prodTag symbolTag m =
 
 type Zipper a = ([a], a, [a]) -- (preceding, selected, rest)
 
+fromZipper :: ([a], a, [a]) -> [a]
 fromZipper (preceding, selected, rest) =
 	preceding ++ [selected] ++ rest
 
@@ -47,6 +48,10 @@ nextSelection cond (lastPreceding, lastSelected, lastRest) =
 		\(preceding, selected, rest) ->
 			(lastPreceding ++ [lastSelected] ++ preceding, selected, rest)
 
+applyAlgorithmUsingProductions ::
+	([ProductionGen Var [[Symbol]]] -> [ProductionGen Var [[Symbol]]])
+	-> GroupedGrammarTagged [SymbolTag]
+	-> GroupedGrammar_SeparateProdTags prodTag [SymbolTag]
 applyAlgorithmUsingProductions f =
 	runIdentity .
 	applyAlgorithmUsingProductionsM (return . f)
@@ -79,9 +84,11 @@ applyAlgorithmUsingProductionsM algorithm grammar =
 
 type ProcessedAndRemaining a = ([a],[a])
 
+untilM :: Monad m => (t -> Bool) -> (t -> m t) -> t -> m t
 untilM cond =
 	untilExtM (\_ x -> cond x)
 
+untilExt :: (c -> c -> Bool) -> (c -> c) -> c -> c
 untilExt cond f =
 	runIdentity . untilExtM cond (return . f)
 
@@ -97,6 +104,7 @@ untilExtM cond f x =
 			then return $ new
 			else untilExtM cond f new
 
+untilExt_M :: (c -> c -> Bool) -> (c -> c) -> c -> c
 untilExt_M cond f =
 	runIdentity . untilExtM cond (return . f)
 
@@ -119,6 +127,9 @@ processAll f =
 	runIdentity .
 	processAllM (\processedAndRemaining current-> return $ f processedAndRemaining current)
 
+processAllOnce ::
+	(ProcessedAndRemaining a -> Identity [a])
+	-> [a] -> [a]
 processAllOnce f =
 	runIdentity .
 	processAllOnceM (return . f)
@@ -132,20 +143,23 @@ processAllOnceM f =
 	\processedAndRemaining currentElem -> fmap (,[]) $ f processedAndRemaining currentElem
 
 processAllM ::
-	forall a m . Monad m =>
+	Monad m =>
 	(ProcessedAndRemaining a ->  a -> m (ProcessedAndRemaining a)) -> [a] -> m [a]
 processAllM f l =
 	fmap fst $
 	processAllM' f ([], l)
-	where
-		processAllM' :: (ProcessedAndRemaining a -> a -> m (ProcessedAndRemaining a)) -> ProcessedAndRemaining a -> m (ProcessedAndRemaining a)
-		processAllM' f partition@(processed, remaining) =
-			case remaining of
-				[] -> return $ partition
-				(x:xs) ->
-					do
-						(newElemsFinished, newElemsToBeProcessedAgain) <- f (processed,remaining) x
-						processAllM' f (processed ++ newElemsFinished, newElemsToBeProcessedAgain ++ xs)
+
+processAllM' ::
+	Monad m =>
+	(ProcessedAndRemaining a -> a -> m (ProcessedAndRemaining a))
+	-> ProcessedAndRemaining a -> m (ProcessedAndRemaining a)
+processAllM' f partition@(processed, remaining) =
+	case remaining of
+		[] -> return $ partition
+		(x:xs) ->
+			do
+				(newElemsFinished, newElemsToBeProcessedAgain) <- f (processed,remaining) x
+				processAllM' f (processed ++ newElemsFinished, newElemsToBeProcessedAgain ++ xs)
 
 {- |
 	`maybeUnfold cond allOtherProductions prod` does the following:

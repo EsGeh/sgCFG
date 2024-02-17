@@ -1,11 +1,19 @@
 module GroupedGrammar.Transformations.ElimEpsilon where
 
-import GroupedGrammar.Conversions
-import GroupedGrammar.Transformations.Utils
 import Grammar.Types
+import GroupedGrammar.Types
+import GroupedGrammar.Transformations.Types
+
 import Utils
+import GroupedGrammar.Transformations.Utils
+import GroupedGrammar.Conversions
 
 
+elimEpsilon :: Monad m =>
+	GroupedGrammarTagged [SymbolTag]
+	-> p1
+	-> p2
+	-> m (GroupedGrammar_SeparateProdTags prodTag [SymbolTag])
 elimEpsilon grammar _ _ =
 	let
 		cond p =
@@ -37,6 +45,9 @@ replaceAll prod prods =
 				[] -> [Left epsilon]
 				other -> other
 
+appendIfChanged ::
+	Eq b => [Either Terminal b] -> [Either Terminal b]
+	-> [[Either Terminal b]]
 appendIfChanged old new =
 	if new == old
 	then [old]

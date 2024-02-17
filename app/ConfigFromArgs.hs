@@ -7,7 +7,6 @@ module ConfigFromArgs(
 ) where
 
 import Config.Types
---import Grammar
 import GrammarFormat
 import Types
 import Utils (mapSnd)
@@ -15,9 +14,7 @@ import Utils (mapSnd)
 import qualified System.Console.GetOpt as Opt
 import Control.Monad
 import Control.Monad.Except
---import Text.Read
 
---import Control.Applicative
 
 configFromArgs :: MonadError String m => [String] -> m Config
 configFromArgs args =
@@ -26,11 +23,9 @@ configFromArgs args =
 			let
 				f = foldl (>=>) return options
 			in
-				-- maybe (throwError "error parsing options") return $
-					f $ defConfig
+				f $ defConfig
 		(_,_,errMessages) ->
 			throwError $ "option format error: " ++ unlines errMessages
-			-- Nothing --errMessages
 
 usageString :: String -> String
 usageString progName =
@@ -100,8 +95,8 @@ optDescrList =
 		Opt.ReqArg transformation "GRAMMAR_TRANSFORMATION"
 	]
 	where
-		defineOption shortOpt longOpt descr transformation =
-			Opt.Option shortOpt longOpt transformation descr
+		defineOption shortOpt longOpt descr transformation' =
+			Opt.Option shortOpt longOpt transformation' descr
 
 outputTree :: MonadError String m => Config -> m Config
 outputTree =
@@ -111,16 +106,19 @@ outputTree =
 		case spec of
 			OutputGroupedGrammar info ->
 				return $ OutputGroupedGrammar $ info{ outputGrammar_asTree = True }
-			_ -> --Nothing
+			_ ->
 		 		throwError $ "bla"
 
+mapToHeadOrError' ::
+	MonadError p m =>
+	p -> (a -> m a)
+	-> [a] -> m [a]
 mapToHeadOrError' errMsg f list =
 	case list of
 		[] -> throwError $ errMsg
 		(x:xs) -> do
 			new <- f x
 			return $ new:xs
-
 
 inputF :: MonadError String m => String -> Config -> m Config
 inputF arg cfg =
@@ -151,6 +149,9 @@ changeInputFormat arg cfg = do
 	(key, val) <- either throwError return $ parseKeyValue arg
 	cfgMapToInputFormatM (applyFormatChange key val) cfg
 
+parseKeyValue ::
+	FromPretty a =>
+	[Char] -> Either ParseError (a, [Char])
 parseKeyValue str =
 	case mapSnd (drop 1) $ span (/='=') str of
 		(keyStr, val) -> do
@@ -172,9 +173,9 @@ transformation arg =
 							=<<
 							outputGrammarInfo_mapToTransformationsM (changeTransformations str) info
 							where
-								changeTransformations str list = do
-									transformation <- either throwError return $ fromPretty str
-									return $ (list++[transformation])
+								changeTransformations str' list = do
+									transformation' <- either throwError return $ fromPretty str'
+									return $ (list++[transformation'])
 						_ ->
 							throwError $ "not defined for grouped grammars yet!"
 
@@ -187,19 +188,15 @@ changeOutputFormat arg cfg =
 		where
 			changeF :: FormatParam -> String -> [OutputSpec] -> m [OutputSpec]
 			changeF key val outputCommands =
-				--maybe (throwError "outputCommands empty") return $
 				flip (mapToHeadOrError' "") outputCommands $
 				\spec ->
-				--(maybe (throwError "") return . flip mapToHeadMaybe outputCommands) =<< \spec ->
 					case spec of
 						OutputGrammar info  -> 
-							--return $
-								fmap OutputGrammar $
-									outputGrammarInfo_mapToFormatM (applyFormatChange key val) info
+							fmap OutputGrammar $
+							outputGrammarInfo_mapToFormatM (applyFormatChange key val) info
 						OutputGroupedGrammar info -> 
-							--return $
-								fmap OutputGroupedGrammar $
-									outputGrammarInfo_mapToFormatM (applyFormatChange key val) info
+							fmap OutputGroupedGrammar $
+							outputGrammarInfo_mapToFormatM (applyFormatChange key val) info
 						_ ->
 							throwError $ "bla"
 
@@ -240,10 +237,5 @@ applyFormatChange param str outputInfo
 				FormatState
 					(f alreadySet format)
 					(if alreadySet then overwrittenParams else param:overwrittenParams)
-			{-
-			case param `elem` overwrittenParams of
-				False -> FormatState (f (const [str]) format) (param:overwrittenParams)
-				True -> FormatState (f (str:) format) overwrittenParams
-			-}
 		format = formatState_format outputInfo
 		overwrittenParams = formatState_paramsChanged outputInfo

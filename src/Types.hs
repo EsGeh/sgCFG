@@ -1,6 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE Rank2Types #-}
 module Types where
 
 import Control.Monad.Identity
@@ -32,5 +33,8 @@ instance ToText String where
 	toText = id
 
 -- helper to implement lenses by hand:
+fromMonadicLens ::
+	(forall m . Monad m => (a1 -> m b) -> a2 -> m c)
+	-> (a1 -> b) -> a2 -> c
 fromMonadicLens lens f =
 	runIdentity . lens (return . f)

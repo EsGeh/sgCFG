@@ -1,14 +1,22 @@
 module GroupedGrammar.Transformations.Unfold where
 
 import GroupedGrammar.Transformations.Utils
+import GroupedGrammar.Transformations.Types( GroupedGrammar_SeparateProdTags )
 import Grammar.Types
 import GroupedGrammar.Types
 import Utils
 
-import Data.List
+import Data.List( find )
 import Data.Maybe
 
 
+unfold ::
+	Monad m =>
+	(Var -> Bool)
+	-> GroupedGrammarTagged [SymbolTag]
+	-> p1
+	-> p2
+	-> m (GroupedGrammar_SeparateProdTags prodTag [SymbolTag])
 unfold varCond grammar _ _ =
 	let
 		cond = varCond . prod_left

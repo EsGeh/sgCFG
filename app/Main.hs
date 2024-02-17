@@ -1,10 +1,11 @@
-module Main where
+module Main (main) where
+
+import ConfigFromArgs
 
 import Parse.Token
 import Grammar
 import GroupedGrammar
 import Types
-import ConfigFromArgs
 import Parse.ParseFormatFromGrammarFormat (parseFormatFromGrammarFormat)
 
 import Utils.Logging
@@ -12,9 +13,8 @@ import Utils.Logging
 import qualified System.Environment as Env (getArgs, getProgName)
 import Control.Monad
 import Control.Monad.Except
---import Control.Monad.Writer
-import Data.List
---import Data.Maybe(fromMaybe)
+import Control.Monad.Trans
+import Data.List( intercalate )
 
 
 main :: IO ()
@@ -97,6 +97,9 @@ unpackTransformationMonad e =
 				--exit
 			Right x -> return x
 
+tokStreamToText ::
+	(Foldable t, HasTokenType a, Pretty a) =>
+	t a -> [Char]
 tokStreamToText s =
 	intercalate " " $
 	foldl conc [] $
@@ -107,11 +110,3 @@ tokStreamToText s =
 			case tokenType next of
 				SepTokenType -> [pretty next] ++ ["\n"]
 				_ -> [pretty next]
-
-{-
-failOrVal :: Monad m => String -> Either String a -> m a
-failOrVal msg x =
-	case x of
-		Left err -> fail $ msg ++ err
-		Right val -> return val
--}

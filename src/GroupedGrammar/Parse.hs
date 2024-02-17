@@ -3,21 +3,23 @@
 module GroupedGrammar.Parse where
 
 import Grammar.Types
---import GroupedGrammar.Internals
+import GroupedGrammar.Types
 import Parse.Token
 import Types
 
-import Text.Parsec hiding(many, (<|>))
+import Text.Parsec hiding(many, (<|>), tokens, token)
 import Control.Applicative
-import Data.List
+import Data.List( intercalate )
 
 
+parseGroupedGrammar :: Monad m =>
+	ParsecT [Token] u m GroupedGrammar
 parseGroupedGrammar =
 	fmap Grammar $
 	many $
 	do
 		(VarToken varInfo) <- specificToken VarTokenType
-		specificToken ArrowTokenType
+		_ <- specificToken ArrowTokenType
 		prod <- parseRightProdSide 
 		return $
 			Production (Var $ fromToken varInfo) prod
@@ -44,6 +46,7 @@ parseRightProdSide = do
 				TerminalToken info -> Left $ Terminal $ fromToken info
 				_ -> error $ concat ["parseRightProdSide error: ", pretty t]
 
+splitBy :: (a -> Bool) -> [a] -> [[a]]
 splitBy cond l =
 	case l of
 		[] -> [[]]
@@ -67,11 +70,13 @@ parseSymbol =
 				TerminalToken info -> Left $ Terminal $ fromToken info
 				_ -> error "parseSymbol error"
 
+oneOf' :: Monad m => [TokenType] -> ParsecT [Token] u m Token
 oneOf' tokT =
 	tok
 		("token of type " ++ intercalate ", " (map show tokT) ++ " expected")
 		((`elem` tokT) . tokenType)
 
+specificToken :: Monad m => TokenType -> ParsecT [Token] u m Token
 specificToken tokT =
 	tok
 		("token of type " ++ show tokT ++ " expected")
@@ -88,16 +93,3 @@ tok _ cond =
 			let (line, col) = tokenPos token
 			in
 				(flip setSourceLine line . flip setSourceColumn col) pos
-		{-
-		updatePos pos token stream =
-			case tokenType token of
-				SepTokenType -> 
-					incSourceLine pos 1
-				_ -> 
-					incSourceColumn pos 1
-		-}
-{-
-	do
-	t <- anyToken 
-	if cond t then return t else parserFail errMsg
--}

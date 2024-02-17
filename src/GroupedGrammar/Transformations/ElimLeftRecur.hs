@@ -3,28 +3,47 @@
 module GroupedGrammar.Transformations.ElimLeftRecur where
 
 import GroupedGrammar.Transformations.VarNameMonad
+import GroupedGrammar.Transformations.Types
 import GroupedGrammar.Conversions
 import GroupedGrammar.Types
 import GroupedGrammar.Transformations.Utils
 import Grammar.Types
---import Types
 import Utils
 
-import Data.List
---import Data.Maybe
---import Control.Monad
-
---import Debug.Trace
+import Data.List( find, partition )
 
 
+elimLeftRecur_full ::
+	Monad m =>
+	(Var -> Bool)
+	-> VarScheme
+	-> GrammarGen (ProductionGen Var [[Tagged [SymbolTag] Symbol]])
+	-> p1
+	-> p2
+	-> m (GroupedGrammar_SeparateProdTags prodTag [SymbolTag])
 elimLeftRecur_full =
 	elimFull $
 	elimImmediateLeftRecursion
 
+elimLeftRecurNoEpsilon_full :: Monad m =>
+	(Var -> Bool)
+	-> VarScheme
+	-> GrammarGen (ProductionGen Var [[Tagged [SymbolTag] Symbol]])
+	-> p1
+	-> p2
+	-> m (GroupedGrammar_SeparateProdTags prodTag [SymbolTag])
 elimLeftRecurNoEpsilon_full =
 	elimFull $
 	elimImmediateLeftRecursion_noEpsilon
 
+elimFull :: Monad m =>
+	(GroupedProduction -> VarNameMonadT m [GroupedProduction])
+	-> (Var -> Bool)
+	-> VarScheme
+	-> GrammarGen (ProductionGen Var [[Tagged [SymbolTag] Symbol]])
+	-> p1
+	-> p2
+	-> m (GroupedGrammar_SeparateProdTags prodTag [SymbolTag])
 elimFull immediate varCond varScheme grammar _ _ =
 	runVarNameMonadT
 		varScheme
@@ -37,26 +56,13 @@ elimFull immediate varCond varScheme grammar _ _ =
 				. immediate
 			) $
 			elimIndirectLeftRecursion processed current
-{-
-elimLeftRecur_full =
-	elimFull $
-	elimImmediateLeftRecursion
 
-elimLeftRecurNoEpsilon_full =
-	elimFull $
-	elimImmediateLeftRecursion_noEpsilon
-
-elimFull immediate varCond varScheme =
-	applyAlgorithmUsingProductionsM varScheme $
-		processAllOnceM $
-		\(processed,remaining) current ->
-			(
-				fmap (\p -> toGroupedProductions $ maybeUnfold varCond (processed++remaining) =<< productionsFromGroupedProd =<< p)
-				. immediate
-			) $
-			elimIndirectLeftRecursion processed current
--}
-
+elimLeftRecur :: Monad m =>
+	VarScheme
+	-> GrammarGen (ProductionGen Var [[Tagged [SymbolTag] Symbol]])
+	-> p1
+	-> p2
+	-> m (GroupedGrammar_SeparateProdTags prodTag [SymbolTag])
 elimLeftRecur varScheme grammar _ _=
 	runVarNameMonadT
 		varScheme
@@ -65,6 +71,12 @@ elimLeftRecur varScheme grammar _ _=
 		processAllOnceM $
 			elimLeftRecurStep $ elimImmediateLeftRecursion
 
+elimLeftRecurNoEpsilon :: Monad m =>
+	VarScheme
+	-> GrammarGen (ProductionGen Var [[Tagged [SymbolTag] Symbol]])
+	-> p1
+	-> p2
+	-> m (GroupedGrammar_SeparateProdTags prodTag [SymbolTag])
 elimLeftRecurNoEpsilon varScheme grammar _ _=
 	runVarNameMonadT
 		varScheme
@@ -74,7 +86,6 @@ elimLeftRecurNoEpsilon varScheme grammar _ _=
 			elimLeftRecurStep $ elimImmediateLeftRecursion_noEpsilon
 
 elimLeftRecurStep ::
-	Monad m =>
 	(GroupedProduction -> VarNameMonadT m [GroupedProduction])
 	-> ProcessedAndRemaining GroupedProduction
 	-> GroupedProduction -> VarNameMonadT m [GroupedProduction]
@@ -134,12 +145,12 @@ elimImmediateLeftRecursionImpl splitProduction' prod =
 			case partition isLeftRecursive rightSides of
 				([],_) ->
 					return $ [prod]
-				partition -> -- (recursiveProductions, otherProductions)
+				partition' -> -- (recursiveProductions, otherProductions)
 					fmap
 						(
 							uncurry (splitProduction' left) $
 							mapFst (map $ drop 1) $
-							partition
+							partition'
 						) $
 					getSimilarVar left
 		where

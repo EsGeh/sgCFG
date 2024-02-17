@@ -3,7 +3,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module GroupedGrammar.Transformations(
 	TransformationMonadT, TransformationMonad,
-	-- doLog, withNoLogging,
 	Transformation(..), AnnotateInfo(..),
 	VarCondition(..),
 	InsertProductionsParams(..),
@@ -36,9 +35,10 @@ import Utils.Graph
 import Types
 
 import qualified Data.Tree as Tree
-import Data.List
+import Data.List( find, (\\) )
 import Data.Maybe
 import Control.Monad.Identity
+import Control.Monad
 
 
 type TransformationMonadT m a =

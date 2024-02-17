@@ -6,9 +6,6 @@ module GroupedGrammar.Transformations.Types where
 import GroupedGrammar.Types
 import Grammar.Types
 import Types
---import GrammarFormat
---import GrammarFormat
---import Types
 import Utils.Graph
 
 import Text.Regex.TDFA
@@ -49,14 +46,6 @@ data VarScheme
 	| FromVar -- originalName + number
 	deriving Show
 
-{-
-data UnfoldParams = UnfoldParams {
-	unfoldParams_repeatUntilNotChanging :: Bool,
-	unfoldParams_varCondDescr :: VarCondition
-}
-	deriving (Show)
--}
-
 data VarCondition = VarCondition {
 	varCond_negate :: Bool,
 	varCond_regex :: String
@@ -82,37 +71,49 @@ data GrammarPosition
 varCondFromDescr :: VarCondition -> (Var -> Bool)
 varCondFromDescr descr =
 	let
-		negate = varCond_negate descr
+		neg = varCond_negate descr
 		regex = varCond_regex descr
 	in
-		(if negate then not else id)
+		(if neg then not else id)
 		.
 		(=~regex)
 		.
 		var_name
-
-{-
-prodCondFromVarCondDescr :: VarCondition -> (ProductionGen Var right -> Bool)
-prodCondFromVarCondDescr descr =
-	varCondFromDescr descr
-	. prod_left
--}
 
 data GroupedGrammar_SeparateProdTags productionTag symbolTag =
 	GroupedGrammar_SeparateProdTags {
 		ggSeparateProdTags_grammar :: GrammarGen (GroupedProductionTagged symbolTag),
 		ggSeparateProdTags_ruleAnnotations :: M.Map Var productionTag
 	}
+
+
+ggSeparateProdTags_mapToGrammar ::
+	(GrammarGen (GroupedProductionTagged symbolTag1) -> GrammarGen (GroupedProductionTagged symbolTag2))
+	-> GroupedGrammar_SeparateProdTags productionTag symbolTag1
+	-> GroupedGrammar_SeparateProdTags productionTag symbolTag2
 ggSeparateProdTags_mapToGrammar =
 	fromMonadicLens ggSeparateProdTags_mapToGrammarM
+
+ggSeparateProdTags_mapToRuleAnnotations ::
+	(M.Map Var productionTag1 -> M.Map Var productionTag2)
+	-> GroupedGrammar_SeparateProdTags productionTag1 symbolTag
+	-> GroupedGrammar_SeparateProdTags productionTag2 symbolTag
 ggSeparateProdTags_mapToRuleAnnotations =
 	fromMonadicLens ggSeparateProdTags_mapToRuleAnnotationsM
 
+ggSeparateProdTags_mapToGrammarM :: Monad m =>
+	(GrammarGen (GroupedProductionTagged symbolTag1) -> m (GrammarGen (GroupedProductionTagged symbolTag2)))
+ 	-> GroupedGrammar_SeparateProdTags productionTag symbolTag1
+	-> m (GroupedGrammar_SeparateProdTags productionTag symbolTag2)
 ggSeparateProdTags_mapToGrammarM f g =
 	do
 		new <- f (ggSeparateProdTags_grammar g)
 		return $ g{ ggSeparateProdTags_grammar = new }
 
+ggSeparateProdTags_mapToRuleAnnotationsM :: Monad m =>
+	(M.Map Var productionTag1 -> m (M.Map Var productionTag2))
+	-> GroupedGrammar_SeparateProdTags productionTag1 symbolTag
+	-> m (GroupedGrammar_SeparateProdTags productionTag2 symbolTag)
 ggSeparateProdTags_mapToRuleAnnotationsM f g =
 	do
 		new <- f (ggSeparateProdTags_ruleAnnotations g)
@@ -120,9 +121,6 @@ ggSeparateProdTags_mapToRuleAnnotationsM f g =
 
 type GrammarGraph symbolTag =
 	Graph Symbol (GroupedProductionTagged symbolTag)
-	--Graph Symbol (GroupedProductionGen Var Symbol)
---type GrammarNode = Maybe Symbol
--- Nothing means "or"
 
 graphFromGroupedGrammar ::
 	Ord key =>
@@ -265,7 +263,7 @@ instance FromPretty VarScheme where
 		case str of
 			"%v%n" -> Right $ FromVar
 			"" -> Left $ "fromPretty error reading VarScheme"
-			str -> Right $ Const str
+			_ -> Right $ Const str
 
 instance Pretty FullLeftFactorIterateWhile where
 	pretty x =

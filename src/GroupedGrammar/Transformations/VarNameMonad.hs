@@ -17,6 +17,7 @@ import qualified Data.Either as Either
 import Data.Char
 import Control.Monad.State
 import Control.Monad.Identity
+import Control.Monad
 
 
 type VarNameMonad a = VarNameMonadT Identity a
@@ -31,43 +32,46 @@ data VarNameState = VarNameState {
 	varNameState_varScheme :: VarScheme
 }
 
+runVarNameMonad :: VarScheme -> GroupedGrammar -> VarNameMonadT Identity a -> a
 runVarNameMonad scheme g = runIdentity . runVarNameMonadT scheme g
 
+varNameState_map :: (S.Set Var -> S.Set Var) -> VarNameState -> VarNameState
 varNameState_map f s = s{ fromVarNameState = f (fromVarNameState s) }
 
 getSimilarVar :: Monad m => Var -> VarNameMonadT m Var
 getSimilarVar var =
 	VarNameMonad $
 	do
-		state <- get
+		st <- get
 		let
-			varsSet = fromVarNameState state
-			scheme = varNameState_varScheme state
+			varsSet = fromVarNameState st
+			scheme = varNameState_varScheme st
 		let
 			newVar = calcNewVar scheme varsSet var
 		modify $ varNameState_map $ (`S.union` S.singleton newVar)
 		return $ newVar
+
+calcNewVar :: VarScheme -> S.Set Var -> Var -> Var
+calcNewVar scheme varSet =
+	genFreeVar . getVar
 	where
-		calcNewVar :: VarScheme -> S.Set Var -> Var -> Var
-		calcNewVar scheme varSet var' =
-			genFreeVar $
+		getVar var =
 			case scheme of
-				FromVar -> var'
+				FromVar -> var
 				Const varName -> Var $ varName
-			where
-				genFreeVar var =
-					if var `S.member` varSet
-						then
-							let
-								varName = var_name var
-								(prefix, suffix) = spanEnd isDigit $ varName
-							in
-								genFreeVar $
-								case suffix of
-									[] -> Var $ prefix ++ "0"
-									_ -> Var $ prefix ++ show ((read suffix :: Int) + 1)
-						else
-							var
+		genFreeVar var =
+			if var `S.member` varSet
+				then
+					let
+						varName = var_name var
+						(prefix, suffix) = spanEnd isDigit $ varName
+					in
+						genFreeVar $
+						case suffix of
+							[] -> Var $ prefix ++ "0"
+							_ -> Var $ prefix ++ show ((read suffix :: Int) + 1)
+				else
+					var
 
 runVarNameMonadT ::
 	Monad m =>
@@ -87,4 +91,5 @@ runVarNameMonadT scheme g m =
 				\prod -> [prod_left prod] ++ join (map Either.rights (prod_right prod))
 			)
 
+spanEnd :: (a -> Bool) -> [a] -> ([a], [a])
 spanEnd cond = (\(a,b) -> (reverse b, reverse a)) . span cond . reverse

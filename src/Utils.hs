@@ -6,28 +6,34 @@ module Utils(
 	module Control.Monad.Except
 ) where
 
-import Data.List as List
 import Control.Monad.Except
 import Control.Monad
+import Data.List( sortBy )
 
 
---unlines = List.intercalate "\n"
-
+mapFst :: (a -> t) -> (a, b) -> (t, b)
 mapFst f (a, b) = (f a, b)
+mapSnd :: (b -> t) -> (a, b) -> (a, t)
 mapSnd f (a, b) = (a, f b)
 
+mapFstM :: Monad m => (a -> m t) -> (a, b) -> m (t, b)
 mapFstM f (a, b) = fmap (, b) $ f a
+mapSndM :: Monad m => (b -> m t) -> (a, b) -> m (a, t)
 mapSndM f (a, b) = fmap (a, ) $ f b
 
+isLeft :: Either a b -> Bool
 isLeft (Right _) = False
 isLeft (Left _) = True
 
+mapLeft :: (l -> t) -> Either l r -> Either t r
 mapLeft f (Left x) = Left (f x)
 mapLeft _ (Right x) = Right x
 
+mapRight :: (r -> t) -> Either l r -> Either l t
 mapRight _ (Left x) = Left x
 mapRight f (Right x) = Right (f x)
 
+uncurry3 :: (t1 -> t2 -> t3 -> t4) -> (t1, t2, t3) -> t4
 uncurry3 f (a,b,c) = f a b c
 
 concLefts ::
@@ -47,36 +53,19 @@ concLefts l =
 					[] -> []
 					(x:xs) -> mapLeft (const []) x : concLefts xs
 
-{-
-{-
-	if string a is a prefix of string b, then b will come before a
-	ex.:
-	orderByPrefix ["a", "ab", "cde"] == ["ab", "a", "cde"]
--}
-orderByPrefix :: Ord a => [[a]] -> [[a]]
-orderByPrefix = sortBy cmp
-	where
-		cmp [] [] = EQ
-		cmp [] (_:_) = GT
-		cmp (_:_) [] = LT
-		cmp (x:xs) (y:ys) =
-			case compare x y of
-				EQ -> cmp xs ys
-				other -> other
--}
 
 -- if two or more lists have the same prefix (/= epsilon), they are returned as a group.
 {- e.g.
 	groupByPrefix ["abcdef", "abc", "abcHURZ", "xyz"] == [("xyz",[]), ("abc",["HURZ", "", "def"]) ]
 -}
 groupByPrefix ::
-	(Eq a, Ord a) => [[a]] -> [([a], [[a]])]
+	Ord a => [[a]] -> [([a], [[a]])]
 groupByPrefix l =
 	reverse $ -- <- quick and dirty solution
-	foldl conc init $
+	foldl conc start $
 	sortBy lexic l
 	where
-		conc :: (Eq a, Ord a) => [([a],[[a]])] -> [a] -> [([a],[[a]])] 
+		conc :: (Eq a) => [([a],[[a]])] -> [a] -> [([a],[[a]])] 
 		conc res l2 =
 				case res of
 					((pref, rests):xs) ->
@@ -90,9 +79,10 @@ groupByPrefix l =
 							_ -> (l2,[[]]):res
 					_ -> [(l2, [[]])]
 
-		init = []
+		start = []
 
 -- |note: if a is a prefix of b, then a < b
+lexic :: Ord a => [a] -> [a] -> Ordering
 lexic a b =
 	case (a,b) of
 		([],[]) -> EQ

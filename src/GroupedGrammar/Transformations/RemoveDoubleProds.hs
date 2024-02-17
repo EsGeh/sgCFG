@@ -1,12 +1,18 @@
 module GroupedGrammar.Transformations.RemoveDoubleProds where
 
 import GroupedGrammar.Transformations.Utils
+import GroupedGrammar.Transformations.Types( GroupedGrammar_SeparateProdTags )
 import GroupedGrammar.Types
 import Grammar.Types
 import Utils
 import Types
 
 
+removeDoubleProds :: MonadLog m =>
+	GroupedGrammarTagged [SymbolTag]
+	-> p1
+	-> p2
+	-> m (GroupedGrammar_SeparateProdTags prodTag [SymbolTag])
 removeDoubleProds grammar _ _ =
 	flip applyAlgorithmUsingProductionsM grammar $
 	repeatTillNotChangingM $ -- <- this is a hack, not very efficient...
@@ -44,17 +50,6 @@ step input@(processed, remaining) prod =
 							sym
 		Nothing ->
 			return $ (processed ++ [prod], remaining)
-	{-
-	| prod_right prod `elem` processed =
-	| otherwise = return $ processed ++ [prod]
-	-}
-
-{-
-process f =
-	runIdentity
-	.
-	processM (return . f)
--}
 
 processM ::
 	Monad m =>

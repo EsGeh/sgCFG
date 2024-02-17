@@ -23,9 +23,3 @@ instance MonadLog IO where
  
 instance MonadLog m => MonadLog (ExceptT e m) where
 	doLog = lift . doLog
-
-
-{-
-instance (Monad (t m), MonadLog m, MonadTrans t) => MonadLog (t m) where
-	doLog = lift . doLog
--}

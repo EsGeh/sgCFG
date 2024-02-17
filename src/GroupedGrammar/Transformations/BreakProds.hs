@@ -2,15 +2,15 @@
 {-# LANGUAGE FlexibleContexts #-}
 module GroupedGrammar.Transformations.BreakProds where
 
-import GroupedGrammar.Transformations.Utils
---import GroupedGrammar.Types
-import GroupedGrammar.Conversions
-import GroupedGrammar.Types
 import Grammar.Types
+import GroupedGrammar.Types
+
+import GroupedGrammar.Transformations.Utils
+import GroupedGrammar.Conversions
 
 
 breakProds ::
-	(MonadLog m, MonadError String m) =>
+	MonadLog m =>
 	VarScheme
 	-> Int
 	-> TransformationImplTypeM prodTag [SymbolTag] m

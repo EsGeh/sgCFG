@@ -17,6 +17,7 @@ import GroupedGrammar.Conversions as Export
 import GroupedGrammar.Parse
 import Grammar.Types
 import GrammarFormat
+import Parse.Format
 import Parse.ParseFormatFromGrammarFormat (parseFormatFromGrammarFormat)
 import Parse.Token
 import Types
@@ -27,6 +28,7 @@ import qualified Text.Parsec as P
 import qualified Data.Tree as Tree
 import qualified Data.Either as Either
 import qualified Data.Maybe as Maybe
+
 
 toTextAsTree :: GrammarFormat -> GroupedGrammar_ProdAndSymbolsTagged ProductionTag [SymbolTag] -> String
 toTextAsTree format g =
@@ -49,11 +51,16 @@ toTextAsTree format g =
 				:: Maybe (Tree.Tree (GroupedProduction_ProdAndSymbolsTagged ProductionTag [SymbolTag]))
 			return $ fmap (toTextAs format) tree
 
+groupedGrammarFromStr ::
+	ParseFormat -> String
+	-> Either String (GrammarGen (ProductionGen Var [[Either Terminal Var]]))
 groupedGrammarFromStr descr =
 	groupedGrammarFromTokens
 	<=<
 	tokensFromStr descr
 
+groupedGrammarFromTokens ::
+	[Token] -> Either String (GrammarGen (ProductionGen Var [[Either Terminal Var]]))
 groupedGrammarFromTokens =
 	fmap (groupedGrammarNullProdsToEpsilonProds . groupedGrammarRebundle)
 	.

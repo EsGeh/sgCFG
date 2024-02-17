@@ -12,7 +12,8 @@ import qualified Data.Set as S
 import Data.Maybe
 
 
---annotateWithFirstSets ::
+annotateWithFirstSets ::
+	GrammarGen GroupedProduction -> M.Map Var ProductionTag
 annotateWithFirstSets grammar =
 	fmap (ProductionTag . Just) $
 	(
@@ -20,23 +21,6 @@ annotateWithFirstSets grammar =
 	step (concatMap productionsFromGroupedProd $ fromGrammar $ grammar)
 	) $
 	(initFirstSets $ fromGrammar $ grammar)
-
-{-
-annotateWithFirstSets ::
-	TransformationImplTypeM ProductionTag [SymbolTag] Maybe
-annotateWithFirstSets ggTagged _ _ =
-	return $
-	GroupedGrammar_SeparateProdTags {
-		ggSeparateProdTags_grammar = ggTagged,
-		ggSeparateProdTags_ruleAnnotations =
-			fmap (ProductionTag . Just) $
-			(
-			repeatTillNotChanging $
-			step (concatMap productionsFromGroupedProd $ fromGrammar $ fromTaggedGrammar ggTagged)
-			) $
-			(initFirstSets $ fromGrammar $ fromTaggedGrammar ggTagged)
-	}
--}
 
 initFirstSets :: [GroupedProduction] -> M.Map Var FirstSet
 initFirstSets prods =
@@ -61,13 +45,13 @@ step prods =
 				calcNewFirstSet (flip M.lookup firstMap) right
 
 calcNewFirstSet :: (Var -> Maybe FirstSet) -> [Symbol] -> FirstSet
-calcNewFirstSet lookup right =
+calcNewFirstSet lookupFunc right =
 	case right of
 		((Left t):xs) ->
 			(
 				if t == epsilon
 				then
-					\x -> x `S.union` calcNewFirstSet lookup xs
+					\x -> x `S.union` calcNewFirstSet lookupFunc xs
 				else
 				id
 			) $
@@ -76,11 +60,11 @@ calcNewFirstSet lookup right =
 			let
 				directFirst =
 					fromMaybe (S.singleton epsilon) $
-					lookup var
+					lookupFunc var
 			in
 				if epsilon `S.member` directFirst
 					then
-						directFirst `S.union` calcNewFirstSet lookup xs
+						directFirst `S.union` calcNewFirstSet lookupFunc xs
 					else
 						directFirst
 		[] ->

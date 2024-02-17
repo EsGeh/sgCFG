@@ -24,15 +24,25 @@ data GrammarFormat
 		--grammarFormat_comment :: [(String, String)]
 	}
 	deriving (Show)
+
+type FormatMapToSurroundBy = (Maybe SurroundBy -> Maybe SurroundBy) -> GrammarFormat -> GrammarFormat
+type FormatMapToStrings = ([String] -> [String]) -> GrammarFormat -> GrammarFormat
+
+gFormatMapToLeftSide :: FormatMapToSurroundBy
 gFormatMapToLeftSide f x = x{ grammarFormat_leftSide = f (grammarFormat_leftSide x) }
+gFormatMapToRightSide :: FormatMapToSurroundBy
 gFormatMapToRightSide f x = x{ grammarFormat_rightSide = f (grammarFormat_rightSide x) }
-gFormatMapToVar
-	:: (Maybe SurroundBy -> Maybe SurroundBy)
-	-> GrammarFormat -> GrammarFormat
+
+gFormatMapToVar :: FormatMapToSurroundBy
 gFormatMapToVar f x = x{ grammarFormat_var = f (grammarFormat_var x) }
+
+gFormatMapToTerminal :: FormatMapToSurroundBy
 gFormatMapToTerminal f x = x{ grammarFormat_terminal = f (grammarFormat_terminal x) }
+gFormatMapToOr :: FormatMapToStrings
 gFormatMapToOr f x = x{ grammarFormat_or = f (grammarFormat_or x) }
+gFormatMapToArrow :: FormatMapToStrings
 gFormatMapToArrow f x = x{ grammarFormat_arrow = f (grammarFormat_arrow x) }
+gFormatMapToLineComment :: FormatMapToStrings
 gFormatMapToLineComment f x = x{ grammarFormat_lineComment = f (grammarFormat_lineComment x) }
 
 data AnnotationFormat
@@ -58,6 +68,7 @@ data DefaultFormat
 	| BNFE
 	deriving (Show)
 
+defaultFormat :: DefaultFormat -> GrammarFormat
 defaultFormat f =
 	case f of
 		Default -> def
@@ -65,6 +76,7 @@ defaultFormat f =
 		BNFE -> bnfe
 
 -- backus naur form
+bnf :: GrammarFormat
 bnf =
 	def{
 		grammarFormat_var = Just $ SurroundBy ("<",">"),
@@ -74,6 +86,7 @@ bnf =
 	}
 
 -- extended backus naur form
+bnfe :: GrammarFormat
 bnfe =
 	def{
 		grammarFormat_var = Nothing,
@@ -81,6 +94,7 @@ bnfe =
 		grammarFormat_arrow = ["::="]
 	}
 
+def :: GrammarFormat
 def =
 	GrammarFormat {
 		grammarFormat_leftSide = Nothing,

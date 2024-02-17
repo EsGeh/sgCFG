@@ -46,9 +46,8 @@ findLoops startSymbol graph = do
 type SeedType = (Tree.Tree (GroupedProductionTagged [SymbolTag]), [GroupedProductionTagged [SymbolTag]])
 
 findLoopsInTree :: GrammarGraph [SymbolTag] -> Tree.Tree (GroupedProductionTagged [SymbolTag]) -> Tree.Tree (GroupedProductionTagged [SymbolTag], [Var])
-findLoopsInTree graph tree =
-	Tree.unfoldTree unfoldF (tree, [])
-		:: Tree.Tree (GroupedProductionTagged [SymbolTag], [Var])
+findLoopsInTree graph tree_ =
+	Tree.unfoldTree unfoldF (tree_, [])
 	where
 		unfoldF :: SeedType -> ((GroupedProductionTagged [SymbolTag], [Var]), [SeedType])
 		unfoldF (tree, path) = (newNode, newSeeds) 

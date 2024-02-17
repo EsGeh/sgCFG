@@ -1,0 +1,64 @@
+name:                sgCFG
+version:             0.1.0.0
+github:              "EsGeh/sgCFG"
+license:             BSD-3-Clause
+author:              "EsGeh"
+maintainer:          "samuel@esgeh.net"
+copyright:           "2024 Samuel Gfrörer"
+
+extra-source-files:
+- README.md
+- CHANGELOG.md
+
+# Metadata used when publishing your package
+synopsis:            "command line tool for processing context-free grammarars"
+category:            "Formal Languages"
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/githubuser/sgCFG#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- parsec == 3.1.*
+- mtl == 2.3.*
+- containers
+- regex-tdfa
+- regex-base
+
+ghc-options:
+- -Wall
+- -Wcompat
+- -Widentities
+- -Wincomplete-record-updates
+- -Wincomplete-uni-patterns
+- -Wmissing-home-modules
+- -Wpartial-fields
+- -Wredundant-constraints
+- -fno-warn-tabs
+
+library:
+  source-dirs: src
+
+executables:
+  sgCFG:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - sgCFG
+
+tests:
+  sgCFG-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - sgCFG

@@ -7,13 +7,10 @@ module GroupedGrammar.Types where
 import Grammar.Types
 import Types
 import GrammarFormat
---import Utils (unlines)
 
 import Prelude hiding(unlines)
-import Data.List hiding (unlines)
+import Data.List( intercalate )
 import qualified Data.Set as S
-
---import Data.Maybe
 
 
 ---------------------------------------------------
@@ -45,7 +42,11 @@ data ProductionTag = ProductionTag {
 	}
 	deriving( Eq, Ord )
 
+prodTag_empty :: ProductionTag
 prodTag_empty = ProductionTag Nothing
+prodTag_mapToFirstSet ::
+	(Maybe FirstSet -> Maybe FirstSet)
+	-> ProductionTag -> ProductionTag
 prodTag_mapToFirstSet f t = t{ prodTag_firstSet = f (prodTag_firstSet t) }
 
 type FirstSet = S.Set Terminal
@@ -62,15 +63,27 @@ fromTaggedGrammar :: GroupedGrammarTagged symbolTag -> GroupedGrammar
 fromTaggedGrammar =
 	fmap $ fromTaggedProduction
 
+toTaggedProduction ::
+	ProductionGen left [[a1]]
+	-> ProductionGen left [[Tagged [a2] a1]]
 toTaggedProduction =
 	prod_mapToRight $ map $ map $ Tagged []
 
+fromTaggedProduction ::
+	ProductionGen left [[Tagged tag b]]
+	-> ProductionGen left [[b]]
 fromTaggedProduction = 
 	prod_mapToRight $ map $ map $ value
 
+groupedProd_removeSymbolTags ::
+	ProductionGen left [[Tagged tag b]]
+	-> ProductionGen left [[b]]
 groupedProd_removeSymbolTags =
 	prod_mapToRight $ map $ map $ value
-
+groupedProd_addSymbolTags ::
+	tag
+	-> ProductionGen left [[a]]
+	-> ProductionGen left [[Tagged tag a]]
 groupedProd_addSymbolTags defTag =
 	prod_mapToRight $ map $ map $ tagged defTag
 
@@ -100,15 +113,17 @@ instance ToTextAs GrammarFormat ProductionTag where
 				, intercalate ", " $ fmap (toTextAs format) $ S.toList $ set
 				, "}"
 				]
-		{-
-		maybe "" id $
-		(prodTag_firstSet x) >>= \set -> return $
-			concat $
-				[ "FIRST={"
-				, intercalate ", " $ fmap (toTextAs format) $ S.toList $ set
-				, "}"
-				]
-		-}
+
+instance
+	ToTextAs GrammarFormat (GroupedProduction_ProdAndSymbolsTagged ProductionTag [SymbolTag]) where
+		toTextAs format p =
+			let
+				tagStr = toTextAs format $ tag p
+				prodStr = toTextAs format $ value p
+			in
+				if tagStr /= ""
+				then unwords [tagStr, prodStr]
+				else prodStr
 
 instance
 	( ToTextAs GrammarFormat left
@@ -130,22 +145,19 @@ instance
 					map (unwords . map (toTextTaggedSymbol format)) $
 					x
 
+-- Pretty
+
 instance
-	ToTextAs GrammarFormat (GroupedProduction_ProdAndSymbolsTagged ProductionTag [SymbolTag]) where
-		toTextAs format p =
-			let
-				tagStr = toTextAs format $ tag p
-				prodStr = toTextAs format $ value p
-			in
-				if tagStr /= ""
-				then unwords [tagStr, prodStr]
-				else prodStr
-			{-
-			unwords $
-				[ toTextAs format $ tag p
-				, toTextAs format $ value p
-				]
-			-}
+	(Pretty left, Pretty symbol) =>
+	Pretty (ProductionGen left [[symbol]]) where
+		pretty p =
+			concat $
+			[ pretty $ prod_left p
+			, " -> "
+			, intercalate " | " $
+				map (unwords . map pretty) $
+				prod_right p
+			]
 
 toTextTaggedSymbol ::
 	(ToTextAs GrammarFormat sym, ToTextAs GrammarFormat tag) =>
@@ -168,31 +180,3 @@ toTextTaggedSymbol format x =
 					if annotationFormat_prepend annFormat
 						then [tagStrSurrounded, valueStr]
 						else [valueStr, tagStrSurrounded]
-
--- Pretty
-
-instance
-	(Pretty left, Pretty symbol) =>
-	Pretty (ProductionGen left [[symbol]]) where
-		pretty p =
-			concat $
-			[ pretty $ prod_left p
-			, " -> "
-			, intercalate " | " $
-				map (unwords . map pretty) $
-				prod_right p
-			]
-
-{-
-instance ToText GroupedGrammar where
-	toText groupedGrammar =
-		unlines $
-		map (uncurry showEntry . (\x -> (prod_left x, prod_right x))) $ fromGroupedGrammar groupedGrammar
-		where
-			showEntry var rightRuleSides =
-				concat $
-				[ pretty var
-				, " -> "
-				, intercalate " | " $ map (unwords . map pretty) rightRuleSides
-				]
--}

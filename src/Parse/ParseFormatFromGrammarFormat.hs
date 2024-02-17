@@ -10,6 +10,7 @@ import Control.Applicative
 
 import qualified Data.List as List
 
+parseFormatFromGrammarFormat :: GrammarFormat -> ParseFormat
 parseFormatFromGrammarFormat grammarFormat =
 	ParseFormat {
 		parseFormat_symbol =
@@ -30,6 +31,9 @@ parseFormatFromGrammarFormat grammarFormat =
 		parseFormat_prodSep = map (P.try . P.string) $ grammarFormat_prodSep grammarFormat
 	}
 
+parseLineComment ::
+	Stream s m Char =>
+	GrammarFormat -> ParsecT s u m String
 parseLineComment f =
 	(choice $ map (P.try . P.string) $ grammarFormat_lineComment f)
 	>>
@@ -68,10 +72,16 @@ parseSymbol f stop =
 			-- default: parse as terminal
 			liftM Left $ parseUntilStop stop
 
+parseSurround ::
+	Stream s m Char =>
+	SurroundBy -> ParsecT s u m String
 parseSurround surround =
 	let (prefix, suffix) = fromSurroundBy surround
 	in
 		P.string prefix *> (P.anyChar `P.manyTill` (P.lookAhead $ P.try $ P.string suffix)) <* P.string suffix
 
+parseUntilStop ::
+	Stream s m Char =>
+	ParsecT s u m end -> ParsecT s u m String
 parseUntilStop stop =
 	P.anyChar `manyTill` (P.lookAhead stop)

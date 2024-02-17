@@ -8,14 +8,6 @@ import Control.Monad
 import Control.Monad.Identity
 
 
-{-
-groupedGrammarNormalize :: GroupedGrammar -> GroupedGrammar
-groupedGrammarNormalize =
-		grammar_mapToProductions $
-		toGroupedProductions .
-		concatMap productionsFromGroupedProd
--}
-
 {- |
 	this correctly groups productions which have equal left hand sides
 -}
@@ -25,6 +17,9 @@ groupedGrammarRebundle =
 		toGroupedProductions .
 		concatMap productionsFromGroupedProd
 
+groupedGrammarNullProdsToEpsilonProds ::
+	GrammarGen (ProductionGen left [[Either Terminal b]])
+	-> GrammarGen (ProductionGen left [[Either Terminal b]])
 groupedGrammarNullProdsToEpsilonProds =
 	grammar_mapToProductions $
 	map $ prod_mapToRight $
@@ -37,6 +32,8 @@ groupedGrammarNullProdsToEpsilonProds =
 
 -- conversion: grouped <-> normal
 
+grammarFromGroupedGrammar ::
+	GrammarGen GroupedProduction -> GrammarGen Production
 grammarFromGroupedGrammar ast =
 	Grammar $
 	concatMap productionsFromGroupedProd $
@@ -45,6 +42,9 @@ grammarFromGroupedGrammar ast =
 productionsFromGroupedProd :: GroupedProduction -> [Production]
 productionsFromGroupedProd x = Production <$> [prod_left x] <*> prod_right x
 
+asWithNormalProductions ::
+	([Production] -> [Production])
+	-> [GroupedProduction] -> [GroupedProduction]
 asWithNormalProductions f =
 	runIdentity
 	.

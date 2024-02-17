@@ -1,12 +1,22 @@
 module GroupedGrammar.Transformations.AddActionSymbols where
 
---import GroupedGrammar.Transformations.Types
+import Grammar.Types
+import GroupedGrammar.Types
+import GroupedGrammar.Transformations.Types
+
 import GroupedGrammar.Transformations.Utils
 import GroupedGrammar.Conversions
-import Grammar.Types
 
 import Control.Monad.State
 
+
+addActionSymbols ::
+	Monad m =>
+	Int
+	-> GroupedGrammarTagged [SymbolTag]
+	-> p1
+	-> p2
+	-> m (GroupedGrammar_SeparateProdTags prodTag [SymbolTag])
 addActionSymbols counterInit grammar _ _ =
 	return $
 	flip applyAlgorithmUsingProductions grammar $
